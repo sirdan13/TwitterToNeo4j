@@ -180,7 +180,7 @@ public class DataDownloader {
 		String tweetToProgram = "MERGE (tv:TV_Program{name:'"+topic+"'})"+
 				"\nCREATE (t)-[:ABOUT]->(tv) ";
 		String reply = "";
-		//IF IT'S NOT A REPLY, IT WILL RETURN -1a
+		//IF IT'S NOT A REPLY, IT WILL RETURN -1
 		if(status.getInReplyToStatusId()>0){
 			reply = 	"\nWITH t"+
 						"\nMATCH (t3:Tweet{tweet_id:"+status.getInReplyToStatusId()+"})"+
