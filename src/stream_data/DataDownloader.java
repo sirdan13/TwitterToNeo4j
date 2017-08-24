@@ -110,23 +110,39 @@ public class DataDownloader {
 		}
 			
 		
-		String mentions = "";
 	//	twitter = new TwitterFactory(cb.build()).getInstance();
-	/*	
+		
 		String screen_names = "";
+		ResponseList<User> users = null;
 		for(UserMentionEntity ume : status.getUserMentionEntities())
 			screen_names += ume.getScreenName()+",";
-		if(screen_names.length()>1)
+		if(screen_names.length()>1){
 			screen_names = screen_names.substring(0, screen_names.length()-1);
-		ResponseList<User> users = twitter.lookupUsers(screen_names);
-		String matchUsers = "";
-		int j = 80;
-		for(User u : users){
-			matchUsers = "MERGE (u+"+j+":User";
-			j++;
+			try{
+				users = twitter.lookupUsers(screen_names);
+			}
+			catch(TwitterException e){
+				screen_names="";
+			}
+			
+			
 		}
-		*/
 		
+		String mentions = "";
+		int j = 80;
+			if(screen_names.length()>1)
+				for(User u : users){
+					String usersName = "";
+						usersName = u.getName().replaceAll("'", "’").replaceAll("'", "’");
+					String usersLocation = "";
+						usersLocation = u.getLocation().replaceAll("'", "’").replaceAll("'", "’");
+					mentions += 	"\nMERGE (u"+j+":User{user_id:"+u.getId()+"})"+
+									"\nSET u"+j+".name='"+usersName+"', u"+j+".screen_name='"+u.getScreenName()+"', u"+j+".followers="+u.getFollowersCount()+", u"+j+".following="+u.getFriendsCount()+", u"+j+".location='"+usersLocation+"', u"+j+".profilePic='"+u.getBiggerProfileImageURL()+"'"+
+									"\nCREATE (u"+j+")<-[:MENTIONS]-(t)";
+					j++;
+			}
+		
+		/*
 		if(status.getUserMentionEntities().length>1 && status.getUserMentionEntities().length<=12){
 			int j = 0;
 			for(UserMentionEntity ume : status.getUserMentionEntities()){
@@ -138,7 +154,7 @@ public class DataDownloader {
 				j++;
 			}
 		}
-		
+		*/
 		String text, location = null, created_at, language, source = null;
 		long tweet_id;
 		int likecount, retweetcount;
@@ -147,7 +163,8 @@ public class DataDownloader {
 		long user_id;
 		int followers, following;
 		
-		text = status.getText(); tweet_id = status.getId(); created_at = DateManager.dateToString(status.getCreatedAt()); language = status.getLang(); 
+			text = status.getText().replaceAll("'", "’").replaceAll("'", "’"); 
+		tweet_id = status.getId(); created_at = DateManager.dateToString(status.getCreatedAt()); language = status.getLang(); 
 		if(status.getSource()!=null){
 			source = status.getSource();
 			try{
@@ -163,13 +180,13 @@ public class DataDownloader {
 		
 		likecount = status.getFavoriteCount(); retweetcount = status.getRetweetCount();
 		if(status.getPlace()!=null)
-			location = status.getPlace().getName()+", "+status.getPlace().getCountry();
-		
+				location = status.getPlace().getName().replaceAll("'", "’").replaceAll("'", "’")+", "+status.getPlace().getCountry();
 		User author = status.getUser();
-		name = author.getName(); screen_name = author.getScreenName(); user_id = author.getId(); profilePic = author.getProfileImageURL();
+		name = author.getName().replaceAll("'", "’").replaceAll("'", "’");
+		screen_name = author.getScreenName(); user_id = author.getId(); profilePic = author.getBiggerProfileImageURL();
 		followers = author.getFollowersCount(); following = author.getFriendsCount();
 		if(author.getLocation()!=null)
-			userLocation = author.getLocation();
+			userLocation = author.getLocation().replaceAll("'", "’").replaceAll("'", "’");
 
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("1", user_id); parameters.put("2", name); parameters.put("3", screen_name); parameters.put("4", followers); parameters.put("5", following);
@@ -197,7 +214,7 @@ public class DataDownloader {
 			System.out.println("Tweet ricevuti: "+contatore);
 	}
 	
-	private static void insertRetweet(Status status, String topic){
+	private static void insertRetweet(Status status, String topic) throws TwitterException{
 		
 		String user = 	"MERGE (n:User{user_id:{1}}) "+
 				"SET n.name={2}, n.screen_name={3}, n.followers={4}, n.following={5}, n.location={6}, n.profilePic={7} \n";
@@ -223,6 +240,35 @@ public class DataDownloader {
 		}
 		
 		String mentions = "";
+		
+		String screen_names = "";
+		ResponseList<User> users = null;
+		for(UserMentionEntity ume : status.getUserMentionEntities())
+			screen_names += ume.getScreenName()+",";
+		if(screen_names.length()>1){
+			screen_names = screen_names.substring(0, screen_names.length()-1);
+			try{
+				users = twitter.lookupUsers(screen_names);
+			}
+			catch(TwitterException e){
+				screen_names="";
+			}
+			
+		}
+		
+		int j = 80;
+			if(screen_names.length()>1)
+				for(User u : users){
+					String usersName = "";
+						usersName = u.getName().replaceAll("'", "’").replaceAll("'", "’");
+					String usersLocation = "";
+						usersLocation = u.getLocation().replaceAll("'", "’").replaceAll("'", "’");
+					mentions += 	"\nMERGE (u"+j+":User{user_id:"+u.getId()+"})"+
+									"\nSET u"+j+".name='"+usersName+"', u"+j+".screen_name='"+u.getScreenName()+"', u"+j+".followers="+u.getFollowersCount()+", u"+j+".following="+u.getFriendsCount()+", u"+j+".location='"+usersLocation+"', u"+j+".profilePic='"+u.getBiggerProfileImageURL()+"'"+
+									"\nCREATE (u"+j+")<-[:MENTIONS]-(t)";
+					j++;
+			}
+		/*
 		int j = 0;
 			for(UserMentionEntity ume : status.getUserMentionEntities()){
 				mentions += "WITH t"+
@@ -230,7 +276,7 @@ public class DataDownloader {
 						"\nCREATE (t)-[:MENTIONS]->(mentioned_user"+j+")";
 				j++;
 			}
-		
+		*/
 		
 		
 		
@@ -259,27 +305,30 @@ public class DataDownloader {
 		text = status.getText(); tweet_id = status.getId();  created_at = DateManager.dateToString(status.getCreatedAt()); language = status.getLang();
 		likecount = status.getFavoriteCount(); retweetcount = status.getRetweetCount();
 		if(status.getPlace()!=null)
-			location = status.getPlace().getName()+", "+status.getPlace().getCountry();
-		
+				location = status.getPlace().getName().replaceAll("'", "’").replaceAll("'", "’")+", "+status.getPlace().getCountry();
 		//RETWEETER
 		User author = status.getUser();
-		name = author.getName(); screen_name = author.getScreenName(); user_id = author.getId(); profilePic = author.getProfileImageURL();
+			name = author.getName().replaceAll("'", "’").replaceAll("'", "’");
+		screen_name = author.getScreenName(); user_id = author.getId(); profilePic = author.getBiggerProfileImageURL();
 		followers = author.getFollowersCount(); following = author.getFriendsCount(); 
 		if(author.getLocation()!=null)
-			userLocation = author.getLocation(); 
+				userLocation = author.getLocation().replaceAll("'", "’").replaceAll("'", "’");
 		
 		//ORIGINAL
 		o_text = status.getRetweetedStatus().getText(); o_tweet_id = status.getRetweetedStatus().getId(); o_created_at = DateManager.dateToString(status.getCreatedAt());  o_language = status.getRetweetedStatus().getLang();
 		o_likecount = status.getRetweetedStatus().getFavoriteCount(); o_retweetcount = status.getRetweetedStatus().getRetweetCount();
 		if(status.getRetweetedStatus().getPlace()!=null)
-			o_location = status.getRetweetedStatus().getPlace().getName();
+				o_location = status.getRetweetedStatus().getPlace().getName().replaceAll("'", "’").replaceAll("'", "’");
+			
 		
 		//AUTHOR
 		User o_author = status.getRetweetedStatus().getUser();
-		a_name = o_author.getName(); a_screen_name = o_author.getScreenName(); a_user_id = o_author.getId(); a_profilePic = o_author.getProfileImageURL();
+			a_name = o_author.getName().replaceAll("'", "’").replaceAll("'", "’");
+		a_screen_name = o_author.getScreenName(); a_user_id = o_author.getId(); a_profilePic = o_author.getBiggerProfileImageURL();
 		a_followers = o_author.getFollowersCount(); a_following = o_author.getFriendsCount();
 		if(o_author.getLocation()!=null)
-			userLocation = o_author.getLocation(); 
+				a_userLocation = o_author.getLocation().replaceAll("'", "’").replaceAll("'", "’");
+		
 		
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("1", user_id); parameters.put("2", name); parameters.put("3", screen_name); parameters.put("4", followers); parameters.put("5", following);
@@ -439,7 +488,7 @@ public class DataDownloader {
 						nameAuthor = status.getRetweetedStatus().getUser().getName();
 						usernameAuthor = status.getRetweetedStatus().getUser().getScreenName();
 						user_idAuthor = String.valueOf(status.getRetweetedStatus().getUser().getId());
-						profilePicAuthor = status.getRetweetedStatus().getUser().getProfileImageURL();
+						profilePicAuthor = status.getRetweetedStatus().getUser().getBiggerProfileImageURL();
 						int followersAuthor, followingAuthor;
 						followersAuthor = status.getRetweetedStatus().getUser().getFollowersCount();
 						followingAuthor = status.getRetweetedStatus().getUser().getFriendsCount();
@@ -450,7 +499,7 @@ public class DataDownloader {
 						user_id = String.valueOf(status.getUser().getId());
 						followers = status.getUser().getFollowersCount();
 						following = status.getUser().getFriendsCount();
-						profilePic = status.getUser().getProfileImageURL();
+						profilePic = status.getUser().getBiggerProfileImageURL();
 						
 						//ADD ORIGINAL AUTHOR
 						addUser(nameAuthor, usernameAuthor, user_idAuthor, followersAuthor, followingAuthor, profilePicAuthor);
@@ -494,7 +543,7 @@ public class DataDownloader {
 					user_id = String.valueOf(status.getUser().getId());
 					followers = status.getUser().getFollowersCount();
 					following = status.getUser().getFriendsCount();
-					profilePic = status.getUser().getProfileImageURL();
+					profilePic = status.getUser().getBiggerProfileImageURL();
 					
 					addTweet(text, tweet_id, location, likecount, retweetcount, topic, created_at, language);
 					addUser(name, username, user_id, followers, following, profilePic);
