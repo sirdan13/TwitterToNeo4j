@@ -1,0 +1,6 @@
+appName=Spark Streaming
+setMaster=local[*]
+zookeeper_server(s)=localhost:2181
+kafka_consumer_group=1
+thread(s)=3
+duration=10000
