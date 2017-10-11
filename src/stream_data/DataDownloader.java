@@ -94,8 +94,9 @@ public class DataDownloader {
 		
 		String user = 	"MERGE (n:User{user_id:{1}}) "+
 						"SET n.name={2}, n.screen_name={3}, n.followers={4}, n.following={5}, n.location={6}, n.profilePic={7}";
-		String tweet =	"CREATE (n)-[:POSTS]->(t:Tweet{text:{8}, tweet_id:{9}, retweetcount:{11}, likecount:{12}, language:{13}, topic:{14}, created_at:{15}}) ";
-					//	"SET t.text={8}, t.tweet_id={9}, t.location={10}, t.retweetcount={11}, t.likecount={12}, t.language={13}, t.topic={14}, t.created_at={15} ";
+		String tweet =	"MERGE (t:Tweet{tweet_id:{9}})"+
+						"\nSET t.text={8}, t.location={10}, t.retweetcount={11}, t.likecount={12}, t.language={13}, t.topic={14}, t.created_at={15} "+
+						"\n CREATE (n)-[:POSTS]->(t)";
 		String tweetSource = "\nMERGE (s:Source{name:{source_name}})"+
 							"\nCREATE (t)-[:TWEETED_BY]->(s)";
 		int cont = 16;
