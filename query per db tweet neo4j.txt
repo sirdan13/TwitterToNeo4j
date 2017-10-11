@@ -1,0 +1,63 @@
+//COUNT TWEET
+match (t:Tweet)
+return count(t)
+
+//COUNT TWEET BY TOPIC
+match (t:Tweet{topic:'politica'})
+return count(t)
+
+//TOP MENTIONED USERS
+MATCH (t:Tweet{topic:'politica'})-[r:MENTIONS]->(u:User)
+RETURN u.name, u.followers, COUNT(r) as mentions
+ORDER BY COUNT(r) DESC
+LIMIT 10
+
+//TOP LIKE
+MATCH (u:User)-->(t:Tweet{topic:'politica'}) 
+RETURN DISTINCT t.text as tweet, t.retweetcount as rt, t.likecount as like, t.tweet_id as tweet_id, u.screen_name as author
+ORDER BY t.likecount DESC
+LIMIT 10
+
+//TOP FOLLOWERS
+match (u:User)
+return u.name, u.screen_name, u.followers, u.following, u.user_id
+order by u.followers desc
+limit 10
+
+//TOP FOLLOWERS/FOLLOWING
+match (u:User)
+return u.name, u.screen_name, u.followers, u.following, u.user_id
+order by u.followers/(u.following+1) desc
+limit 10
+
+//TOP RETWEETED
+MATCH (t1:Tweet{topic:'politica'})-[r:RETWEETS]->(t:Tweet), (u:User)-->(t)
+RETURN t.text as tweet, t.retweetcount as rt, t.likecount as like, t.tweet_id as tweet_id, u.screen_name as author, COUNT(r) as retweets
+ORDER BY COUNT(r) DESC
+LIMIT 10
+
+//TOP SOURCES
+match (s:Source)<-[r]-()
+return s.name as source, count(r) as tweets_from_source
+order by count(r) desc
+limit 10
+
+//TOP PLACES
+match (t:Tweet{topic:'politica'})
+where t.location<>'null'
+return t.location as place, count(t) as tweets_from_location
+order by count(t) desc
+limit 10
+
+//TOP LANGUAGES
+match (t:Tweet{topic:'politica'})
+where t.language<>'und'
+return t.language as lang, count(t) as num
+order by count(t) desc
+limit 10
+
+//TOP TOPIC
+match (tv:TV_Program)<-[r]-()
+return tv.name as topic, count(r) as tweets_about_topic
+order by count(r) desc
+limit 10
