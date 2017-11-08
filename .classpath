@@ -33,6 +33,8 @@
 			<attribute name="javadoc_location" value="http://neo4j.com/docs/api/java-driver/current/"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/neo4j-graphdb-api-3.0.1.jar"/>
 	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/neo4j-java-driver-1.4.3.jar"/>
+	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/neo4j-kernel-3.0.0-M03.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
