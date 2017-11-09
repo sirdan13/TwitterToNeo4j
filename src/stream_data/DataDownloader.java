@@ -47,6 +47,8 @@ public class DataDownloader {
 					Thread.sleep(100);
 				} 
 				
+				
+				
 				if(status!=null){
 					if(status.isRetweet()){
 						TwitterManager.insertRetweet(session, about, status);
@@ -55,12 +57,12 @@ public class DataDownloader {
 						
 					else
 						TwitterManager.insertTweet(session, about, status);
-					
+					contatore++;
 				}
 				
-				contatore++;
 				
-				if(contatore%500==0)
+				
+				if(contatore%500==0 && contatore>0)
 					System.out.println(contatore+" tweet ricevuti.");
 				
 				if(System.currentTimeMillis()-lastUpdate>=10000){

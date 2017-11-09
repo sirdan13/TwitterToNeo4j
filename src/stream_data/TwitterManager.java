@@ -5,11 +5,15 @@ import java.awt.Font;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Stream;
 
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -20,14 +24,20 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.plaf.ColorUIResource;
 
+import org.neo4j.driver.v1.Record;
 import org.neo4j.driver.v1.Session;
+import org.neo4j.driver.v1.StatementResult;
 
 import twitter4j.FilterQuery;
 import twitter4j.HashtagEntity;
+import twitter4j.ResponseList;
 import twitter4j.StallWarning;
 import twitter4j.Status;
 import twitter4j.StatusDeletionNotice;
 import twitter4j.StatusListener;
+import twitter4j.Twitter;
+import twitter4j.TwitterException;
+import twitter4j.TwitterFactory;
 import twitter4j.User;
 import twitter4j.UserMentionEntity;
 import twitter4j.conf.Configuration;
@@ -35,7 +45,7 @@ import twitter4j.conf.ConfigurationBuilder;
 
 public class TwitterManager {
 
-
+	private Session session;
 	private static ConfigurationBuilder cb;
 //	private static Twitter twitter;
 	private static Icon icon =  new ImageIcon("config/icon.png");
@@ -60,6 +70,196 @@ public class TwitterManager {
 		
 	}
 	
+	public TwitterManager(){
+		GraphDBManager gdbm = new GraphDBManager();
+		this.session = gdbm.getSession();
+	}
+	
+	public void fillUpUser(User user){
+		String query = 
+				"MATCH (u:User{user_id:{user_id}})"
+				+"\n SET u.name={name}, u.screen_name={screen_name}, u.location={location}, u.followers={followers}, u.following={following}";
+		String location = "";
+		if(user.getLocation()==null)
+			location="null";
+		else
+			location=user.getLocation();
+		Map<String, Object> parameters = new HashMap<String, Object>();
+		parameters.put("user_id", user.getId());
+		parameters.put("name", user.getName());
+		parameters.put("screen_name", user.getScreenName());
+		parameters.put("location", location);
+		parameters.put("followers", user.getFollowersCount());
+		parameters.put("following", user.getFriendsCount());
+		
+		//Run the query
+		this.session.run(query, parameters);
+	}
+	
+	//Extracts users with no other information but the user_id
+	public static long[] extractUsers(){
+		GraphDBManager gdbm = new GraphDBManager();
+		Session session = gdbm.getSession();
+		String query = "MATCH (u:User) WHERE NOT EXISTS(u.name) RETURN u.user_id as user_id order by user_id asc";
+		StatementResult sr = session.run(query);
+		List<Long> ids = new ArrayList<Long>();
+		for(Record r : sr.list()){
+			long id = r.get(0).asLong();
+			ids.add(id);
+		}
+		long[] result = ids.stream().mapToLong(l -> l).toArray();
+		return result;
+	}
+	
+	public static ResponseList<User> lookupUsers(long id){
+		String[] auth = null;
+		try {
+			auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
+		} catch (FileNotFoundException e1) {
+			e1.printStackTrace();
+		}
+		ConfigurationBuilder cb = new ConfigurationBuilder();
+		cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
+				.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
+        Twitter twitter = new TwitterFactory(cb.build()).getInstance();
+        try {
+			return twitter.lookupUsers(id);
+		} catch (TwitterException e) {
+			e.printStackTrace();
+		}
+		return null;
+		
+	}
+	
+	public static ResponseList<User> lookupUsers(String screen_names){
+		String[] auth = null;
+		try {
+			auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
+		} catch (FileNotFoundException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		ConfigurationBuilder cb = new ConfigurationBuilder();
+		cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
+				.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
+        Twitter twitter = new TwitterFactory(cb.build()).getInstance();
+        try {
+			return twitter.lookupUsers(screen_names);
+		} catch (TwitterException e) {
+			e.printStackTrace();
+		}
+		return null;
+		
+	}
+	
+	private static List<long []> moreThan100Users(long[] ids){
+		int nUsersInt = ids.length;
+		double nArrays = nUsersInt/100;	//<-----number of arrays which will have 100 users
+		List<long []> arrays = new ArrayList<long []>();
+		for(int i = 0;i<nArrays;i++){
+			int start = i*100;
+			int end = (i*100)+100;
+			arrays.add(Arrays.copyOfRange(ids, start, end));
+		}
+		arrays.add(Arrays.copyOfRange(ids, (int) (nArrays*100), ids.length));
+		return arrays;
+	}
+	
+	public static Set<User> lookupUsers(long[] ids){
+		String[] auth = null;
+		try {
+			auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
+		} catch (FileNotFoundException e1) {
+			e1.printStackTrace();
+		}
+		ConfigurationBuilder cb = new ConfigurationBuilder();
+		cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
+				.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
+        Twitter twitter = new TwitterFactory(cb.build()).getInstance();
+        if(ids.length<=100){
+        	try {
+        		Set<User> userSet = new HashSet<User>();
+        		userSet.addAll(twitter.lookupUsers(ids));
+				return userSet;
+			} catch (TwitterException e) {
+				System.out.println("Lookup failed");
+			}
+        	
+        }
+        else{
+        	List<long[]> idArrays = moreThan100Users(ids);
+        	ResponseList<User> totalUsers = null;
+        	ResponseList<User> previousUsers = null;
+        	try{
+        		totalUsers = twitter.lookupUsers(idArrays.get(0));
+        		previousUsers = twitter.lookupUsers(idArrays.get(0));
+        	}
+        	catch (TwitterException e) {
+				System.out.println("Lookup failed");
+			}
+        	
+        	for(int i = 1;i<idArrays.size();i++){
+        		try {
+					ResponseList<User> currentUsers = twitter.lookupUsers(idArrays.get(i));
+					Stream.of(previousUsers, currentUsers).forEach(totalUsers::addAll);
+					previousUsers = currentUsers;
+				} catch (TwitterException e) {
+					System.out.println("Lookup failed");
+				}
+        	}
+        	Set<User> userSet = new HashSet<>();
+    		userSet.addAll(totalUsers);
+    		return userSet;
+        	
+    		
+        }
+		return null;
+		
+		
+	}
+	
+	public static Object[] lookupUsers2(long[] ids){
+		String[] auth = null;
+		try {
+			auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
+		} catch (FileNotFoundException e1) {
+			e1.printStackTrace();
+		}
+		ConfigurationBuilder cb = new ConfigurationBuilder();
+		cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
+				.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
+        Twitter twitter = new TwitterFactory(cb.build()).getInstance();
+        boolean success = false;
+        int counter = 0;
+        List<Long> excluded = new ArrayList<Long>();
+        while(!success){
+        	ResponseList<User> users;
+        	try {
+        		if(counter==0){
+        			users = twitter.lookupUsers(ids);
+        		}
+        		else{
+        			excluded.add(ids[ids.length-1]);
+        			ids = Arrays.copyOfRange(ids, 0, ids.length-1);
+        			users = twitter.lookupUsers(ids);
+        		}
+        		success=true;
+        		long[] excludedArray = excluded.stream().mapToLong(l -> l).toArray();
+        		Object [] output = {users, excludedArray};
+        		return output;
+        	} 
+        	catch (TwitterException e) {
+        		System.out.println("Too many parameters for lookup query");
+        		counter++;
+        	}
+        }
+       
+		return null;
+		
+	}
+	
+	
+	
 public static void insertTweet(Session session, String about, Status status) {
 		
 		String location;
@@ -72,7 +272,7 @@ public static void insertTweet(Session session, String about, Status status) {
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("tweet_id", status.getId());
 		parameters.put("text", status.getText());
-		parameters.put("created_at", status.getCreatedAt().toString());
+		parameters.put("created_at", Utilities.convertDate(status.getCreatedAt()));
 		parameters.put("user", status.getUser().getScreenName());
 		parameters.put("about", about);
 		parameters.put("retweetcount", status.getRetweetCount());
@@ -153,7 +353,7 @@ public static void insertTweet(Session session, String about, Status status) {
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("re_tweet_id", retweet.getId());
 		parameters.put("re_text", retweet.getText());
-		parameters.put("re_created_at", retweet.getCreatedAt().toString());
+		parameters.put("re_created_at", Utilities.convertDate(retweet.getCreatedAt()));
 		parameters.put("re_user", retweet.getUser().getScreenName());
 		parameters.put("re_about", about);
 		parameters.put("re_retweetcount", retweet.getRetweetCount());
@@ -170,7 +370,7 @@ public static void insertTweet(Session session, String about, Status status) {
 		//Tweet properties
 		parameters.put("tweet_id", status.getId());
 		parameters.put("text", status.getText());
-		parameters.put("created_at", status.getCreatedAt().toString());
+		parameters.put("created_at", Utilities.convertDate(status.getCreatedAt()));
 		parameters.put("user", status.getUser().getScreenName());
 		parameters.put("about", about);			
 		parameters.put("retweetcount", status.getRetweetCount());			
