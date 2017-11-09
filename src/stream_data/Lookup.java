@@ -15,14 +15,14 @@ public class Lookup {
 		int counter = 0;
 		gdbm = new GraphDBManager();
 		while(true){
-			if((System.currentTimeMillis()-startTime)>30000 || counter==0){
+			if((System.currentTimeMillis()-startTime)>15000 || counter==0){
 				
 				startTime=System.currentTimeMillis();
 				lookupUsers(tm);
 				lookupTweets(tm);
 				counter++;
 				System.out.println("Task completed.");
-				System.out.println("Next update in 30 seconds");
+				System.out.println("Next update in 15 seconds");
 			}
 				
 				

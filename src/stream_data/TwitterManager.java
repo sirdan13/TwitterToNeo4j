@@ -371,7 +371,7 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 	
 	
 	
-public static void insertTweet(Session session, String about, Status status) {
+public static void insertTweet(Session session, String topic, Status status) {
 		
 		String location;
 		if(status.getPlace()!=null)
@@ -384,7 +384,7 @@ public static void insertTweet(Session session, String about, Status status) {
 		//Query
 				query += 	
 						"\nCREATE (t:Tweet{tweet_id:{tweet_id}})"
-						+ " SET t.text={text}, t.created_at={created_at}, t.about={about}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
+						+ " SET t.text={text}, t.created_at={created_at}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
 				query += 
 						"\nMERGE (u:User{user_id:{user_id}})"
 						+ " SET u.screen_name={screen_name}, u.name={name}, u.location={user_location}, u.followers={followers}, u.following={following}";
@@ -398,7 +398,6 @@ public static void insertTweet(Session session, String about, Status status) {
 		parameters.put("tweet_id", status.getId());
 		parameters.put("text", status.getText());
 		parameters.put("created_at", Utilities.convertDate(status.getCreatedAt()));
-		parameters.put("about", about);
 		parameters.put("retweetcount", status.getRetweetCount());
 		parameters.put("likecount", status.getFavoriteCount());
 		parameters.put("location", location);
@@ -445,7 +444,9 @@ public static void insertTweet(Session session, String about, Status status) {
 							+ "\n MERGE (t)-[:REPLIES_TO]->(replied)";
 				}
 		
-		
+		query += "\nMERGE (t)-[:ABOUT]->(tv:Topic{name:{topic}})";
+		parameters.put("topic", topic);
+				
 		
 
 		
@@ -454,9 +455,16 @@ public static void insertTweet(Session session, String about, Status status) {
 		
 	}
 	
-	public static void insertRetweet(Session session, String about, Status status) {
+	public static void insertRetweet(Session session, String topic, Status status) {
 		Status retweet = status.getRetweetedStatus();
 		String re_location;
+		String query = "";
+		query+="\nCREATE (t:Tweet{tweet_id:{tweet_id}})"
+				+ " SET t.text={text}, t.language={language}, t.created_at={created_at}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
+		query+="\nMERGE (rt:Tweet{tweet_id:{re_tweet_id}})"
+				+ " ON MATCH SET rt.retweetcount={re_retweetcount}, rt.likecount={re_likecount}"
+				+ " ON CREATE SET rt.text={re_text}, rt.language={re_language}, rt.created_at={re_created_at}, rt.retweetcount={re_retweetcount}, rt.likecount={re_likecount}, rt.location={re_location}";
+				
 		if(retweet.getPlace()!=null)
 			re_location = retweet.getPlace().getName();
 		else
@@ -468,7 +476,6 @@ public static void insertTweet(Session session, String about, Status status) {
 		parameters.put("re_text", retweet.getText());
 		parameters.put("re_created_at", Utilities.convertDate(retweet.getCreatedAt()));
 		parameters.put("re_user", retweet.getUser().getScreenName());
-		parameters.put("re_about", about);
 		parameters.put("re_retweetcount", retweet.getRetweetCount());
 		parameters.put("re_likecount", retweet.getFavoriteCount());
 		parameters.put("re_location", re_location);
@@ -483,8 +490,7 @@ public static void insertTweet(Session session, String about, Status status) {
 		//Tweet properties
 		parameters.put("tweet_id", status.getId());
 		parameters.put("text", status.getText());
-		parameters.put("created_at", Utilities.convertDate(status.getCreatedAt()));
-		parameters.put("about", about);			
+		parameters.put("created_at", Utilities.convertDate(status.getCreatedAt()));	
 		parameters.put("retweetcount", status.getRetweetCount());			
 		parameters.put("likecount", status.getFavoriteCount());			
 		parameters.put("location", location);
@@ -509,40 +515,36 @@ public static void insertTweet(Session session, String about, Status status) {
 		parameters.put("following", user.getFriendsCount());
 		
 		//Retweet: Hashtag property
-		String storeRetweetHashtags = "";
 		int nHashtag = 0;
 		nHashtag = 0;
 		for(HashtagEntity h : retweet.getHashtagEntities()){
 			nHashtag++;
 			parameters.put("tag"+nHashtag, h.getText().toLowerCase());
-			storeRetweetHashtags="MERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query+="\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
 		}
 		
 		//Tweet: Hashtag property
-		String storeHashtags = "";
 		for(HashtagEntity h : status.getHashtagEntities()){
 			nHashtag++;
 			parameters.put("tag"+nHashtag, h.getText().toLowerCase());
-			storeHashtags="MERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query+="\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
 		}	
 		
 		
 		//Mentions
-		String storeMentions = "";
 		int nMentions = 0;
 		for(UserMentionEntity ume : status.getUserMentionEntities()){
 			nMentions++;
 			parameters.put("mentioned_id"+nMentions, ume.getId());
-			storeMentions = "MERGE (user_mentioned"+nMentions+":User{user_id:{mentioned_id"+nMentions+"}})"
+			query+="\nMERGE (user_mentioned"+nMentions+":User{user_id:{mentioned_id"+nMentions+"}})"
 						+ " CREATE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
 		}
 		
 		//Retweet Mentions
-		String storeRetweetMentions = "";
 		for(UserMentionEntity ume : retweet.getUserMentionEntities()){
 			nMentions++;
 			parameters.put("mentioned_id"+nMentions, ume.getId());
-			storeMentions = "MERGE (user_mentioned"+nMentions+":User{user_id:{mentioned_id"+nMentions+"}})"
+			query+="\nMERGE (user_mentioned"+nMentions+":User{user_id:{mentioned_id"+nMentions+"}})"
 						+ " CREATE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
 		}
 		
@@ -558,53 +560,40 @@ public static void insertTweet(Session session, String about, Status status) {
 		parameters.put("rtsource", temp);
 		
 		//Replies to
-		String repliesTo = "";
 		if(status.getInReplyToStatusId()!=-1){
 			parameters.put("replies", status.getInReplyToStatusId());
-			repliesTo = "MERGE (replied:Tweet{tweet_id:{replies}})"
+			query+="\nMERGE (replied:Tweet{tweet_id:{replies}})"
 					+ "\n MERGE (t)-[:REPLIES_TO]->(replied)";
 		}
 		
 		//Retweet Replies to
-				String rtRepliesTo = "";
-				if(retweet.getInReplyToStatusId()!=-1){
-					parameters.put("rtreplies", retweet.getInReplyToStatusId());
-					repliesTo = "MERGE (rtreplied:Tweet{tweet_id:{rtreplies}})"
-							+ "\n MERGE (t)-[:REPLIES_TO]->(rtreplied)";
-				}	
+		if(retweet.getInReplyToStatusId()!=-1){
+			parameters.put("rtreplies", retweet.getInReplyToStatusId());
+			query+="\nMERGE (rtreplied:Tweet{tweet_id:{rtreplies}})"
+					+ "\n MERGE (t)-[:REPLIES_TO]->(rtreplied)";
+		}	
 		
 				
 		
 		//Query
-		String storeTweet = 	
-				"CREATE (t:Tweet{tweet_id:{tweet_id}})"
-				+ " SET t.text={text}, t.language={language}, t.created_at={created_at},  t.about={about}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
-		String storeReTweet = 	
-				"MERGE (rt:Tweet{tweet_id:{re_tweet_id}})"
-				+ " ON MATCH SET rt.retweetcount={re_retweetcount}, rt.likecount={re_likecount}"
-				+ " ON CREATE SET rt.text={re_text}, rt.language={re_language}, rt.created_at={re_created_at}, rt.about={re_about}, rt.retweetcount={re_retweetcount}, rt.likecount={re_likecount}, rt.location={re_location}";
-		String storeOriginalUser = 
-				"MERGE (ou:User{user_id:{ouser_id}})"
+				query+="\nMERGE (ou:User{user_id:{ouser_id}})"
 				+ " SET ou.followers={ofollowers}, ou.following={ofollowing}, ou.screen_name={oscreen_name}, ou.location={ouser_location}, ou.name={oname}";
-		String storeUser = 
-				"MERGE (u:User{user_id:{user_id}})"
+				query+="\nMERGE (u:User{user_id:{user_id}})"
 				+ " SET u.followers={followers}, u.following={following}, u.screen_name={screen_name}, u.location={user_location}, u.name={name}";
-		String storeOriginalPosts = 
-				"MERGE (ou)-[:POSTS]->(rt)";
-		String storePosts = 
-				"MERGE (u)-[:POSTS]->(t)";
-		String storeRetweetRelationship = 
-				"CREATE (t)-[:RETWEETS]->(rt)";
-		String storeSource = ""
-				+ "MERGE (t)-[:SENT_FROM]->(source:Source{name:{source}})";
-		String storeRetweetSource = ""
-				+ "MERGE (rt)-[:SENT_FROM]->(rtsource:Source{name:{rtsource}})";
-		String finalQuery = storeTweet+"\n"+storeReTweet+"\n"+storeUser+"\n"+storeOriginalUser+"\n"+storeHashtags+
-							"\n"+storeRetweetHashtags+"\n"+storeOriginalPosts+"\n"+storePosts+"\n"+storeRetweetRelationship+
-							"\n"+storeMentions+"\n"+storeRetweetMentions+"\n"+storeSource+"\n"+storeRetweetSource+"\n"+repliesTo+"\n"+rtRepliesTo;
+				query+="\nMERGE (ou)-[:POSTS]->(rt)";
+				query+="\nMERGE (u)-[:POSTS]->(t)";
+				query+="\nCREATE (t)-[:RETWEETS]->(rt)";
+				query+="\nMERGE (t)-[:SENT_FROM]->(source:Source{name:{source}})";
+				query+="\nMERGE (rt)-[:SENT_FROM]->(rtsource:Source{name:{rtsource}})";
+		
+		
+		query += "\nMERGE (t)-[:ABOUT]->(tv:Topic{name:{topic}})";
+		parameters.put("topic", topic);
+		
+		query += "\nMERGE (rt)-[:ABOUT]->(tv)";
 		
 		//Run the query
-		session.run(finalQuery, parameters);
+		session.run(query, parameters);
 		
 	}
 	
