@@ -113,11 +113,7 @@ public class TwitterManager {
 	
 	public static ResponseList<User> lookupUsers(long id){
 		String[] auth = null;
-		try {
-			auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
-		} catch (FileNotFoundException e1) {
-			e1.printStackTrace();
-		}
+		auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
 		ConfigurationBuilder cb = new ConfigurationBuilder();
 		cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
 				.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
@@ -125,7 +121,12 @@ public class TwitterManager {
         try {
 			return twitter.lookupUsers(id);
 		} catch (TwitterException e) {
-			e.printStackTrace();
+			System.out.print("Lookup failed");
+			if(e.exceededRateLimitation())
+				System.out.println(" due to exceeded rate limitation.");
+			if(e.getErrorCode()==17)
+			System.out.println(": user(s) not found.");
+			System.exit(-1);
 		}
 		return null;
 		
@@ -133,12 +134,9 @@ public class TwitterManager {
 	
 	public static ResponseList<User> lookupUsers(String screen_names){
 		String[] auth = null;
-		try {
-			auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+		String file = "config/credenziali_twitter3.txt";
+		auth = TwitterManager.readTwitterAuth(file);
+		
 		ConfigurationBuilder cb = new ConfigurationBuilder();
 		cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
 				.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
@@ -146,7 +144,11 @@ public class TwitterManager {
         try {
 			return twitter.lookupUsers(screen_names);
 		} catch (TwitterException e) {
-			e.printStackTrace();
+			System.out.print("Lookup failed");
+			if(e.exceededRateLimitation())
+				System.out.println(" due to exceeded rate limitation.");
+			if(e.getErrorCode()==17)
+			System.out.println(": user(s) not found.");
 		}
 		return null;
 		
@@ -167,11 +169,7 @@ public class TwitterManager {
 	
 	public static Set<User> lookupUsers(long[] ids){
 		String[] auth = null;
-		try {
-			auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
-		} catch (FileNotFoundException e1) {
-			e1.printStackTrace();
-		}
+		auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
 		ConfigurationBuilder cb = new ConfigurationBuilder();
 		cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
 				.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
@@ -182,7 +180,12 @@ public class TwitterManager {
         		userSet.addAll(twitter.lookupUsers(ids));
 				return userSet;
 			} catch (TwitterException e) {
-				System.out.println("Lookup failed");
+				System.out.print("Lookup failed");
+				if(e.exceededRateLimitation())
+					System.out.println(" due to exceeded rate limitation.");
+				if(e.getErrorCode()==17)
+				System.out.println(": user(s) not found.");
+				System.exit(-1);
 			}
         	
         }
@@ -195,7 +198,11 @@ public class TwitterManager {
         		previousUsers = twitter.lookupUsers(idArrays.get(0));
         	}
         	catch (TwitterException e) {
-				System.out.println("Lookup failed");
+				System.out.print("Lookup failed");
+				if(e.exceededRateLimitation())
+					System.out.println(" due to exceeded rate limitation.");
+				if(e.getErrorCode()==17)
+				System.out.println(": user(s) not found.");
 			}
         	
         	for(int i = 1;i<idArrays.size();i++){
@@ -204,9 +211,14 @@ public class TwitterManager {
 					Stream.of(previousUsers, currentUsers).forEach(totalUsers::addAll);
 					previousUsers = currentUsers;
 				} catch (TwitterException e) {
-					System.out.println("Lookup failed");
+					System.out.print("Lookup failed");
+					if(e.exceededRateLimitation())
+						System.out.println(" due to exceeded rate limitation.");
+					if(e.getErrorCode()==17)
+					System.out.println(": user(s) not found.");
 				}
         	}
+        	
         	Set<User> userSet = new HashSet<>();
     		userSet.addAll(totalUsers);
     		return userSet;
@@ -215,46 +227,6 @@ public class TwitterManager {
         }
 		return null;
 		
-		
-	}
-	
-	public static Object[] lookupUsers2(long[] ids){
-		String[] auth = null;
-		try {
-			auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
-		} catch (FileNotFoundException e1) {
-			e1.printStackTrace();
-		}
-		ConfigurationBuilder cb = new ConfigurationBuilder();
-		cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
-				.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
-        Twitter twitter = new TwitterFactory(cb.build()).getInstance();
-        boolean success = false;
-        int counter = 0;
-        List<Long> excluded = new ArrayList<Long>();
-        while(!success){
-        	ResponseList<User> users;
-        	try {
-        		if(counter==0){
-        			users = twitter.lookupUsers(ids);
-        		}
-        		else{
-        			excluded.add(ids[ids.length-1]);
-        			ids = Arrays.copyOfRange(ids, 0, ids.length-1);
-        			users = twitter.lookupUsers(ids);
-        		}
-        		success=true;
-        		long[] excludedArray = excluded.stream().mapToLong(l -> l).toArray();
-        		Object [] output = {users, excludedArray};
-        		return output;
-        	} 
-        	catch (TwitterException e) {
-        		System.out.println("Too many parameters for lookup query");
-        		counter++;
-        	}
-        }
-       
-		return null;
 		
 	}
 	
@@ -521,14 +493,29 @@ public static void insertTweet(Session session, String about, Status status) {
 		 return null;
 	}
 	
-	public static String [] readTwitterAuth(String file) throws FileNotFoundException{
+	public static String [] readTwitterAuth(String file){
 		String [] output = new String[4];
-		Scanner sc = new Scanner(new File(file));
-		int count = 0;
-		while(sc.hasNextLine()){
-			output[count++] = sc.nextLine();
+		boolean success = false;
+		while(!success){
+			Scanner sc = null;
+			try {
+				sc = new Scanner(new File(file));
+				success = true;
+				int count = 0;
+				while(sc.hasNextLine()){
+					output[count++] = sc.nextLine();
+				}
+				sc.close();
+			} catch (FileNotFoundException e1) {
+				System.out.println("File not found. Please type its location below (press 0 to exit):");
+				Scanner sc2 = new Scanner(System.in);
+				file = sc2.nextLine();
+				if(file.equals("0"))
+					System.exit(-1);
+				sc2.close();
+			}
+			
 		}
-		sc.close();
 		return output;
 	}
 	

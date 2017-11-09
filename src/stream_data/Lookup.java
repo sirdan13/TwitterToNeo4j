@@ -1,9 +1,10 @@
 package stream_data;
 
 import java.util.Set;
+
 import twitter4j.User;
 
-public class TweetLookup {
+public class Lookup {
 
 	public static void main(String[] args) {
 		
