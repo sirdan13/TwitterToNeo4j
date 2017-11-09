@@ -45,9 +45,8 @@ import twitter4j.conf.ConfigurationBuilder;
 
 public class TwitterManager {
 
-	private Session session;
+	private static Session session;
 	private static ConfigurationBuilder cb;
-//	private static Twitter twitter;
 	private static Icon icon =  new ImageIcon("config/icon.png");
 	private static String topic;
 	private Configuration config;
@@ -75,49 +74,13 @@ public class TwitterManager {
 		this.session = gdbm.getSession();
 	}
 	
-	public void fillUpUser(User user){
-		String query = 
-				"MATCH (u:User{user_id:{user_id}})"
-				+"\n SET u.name={name}, u.screen_name={screen_name}, u.location={location}, u.followers={followers}, u.following={following}";
-		String location = "";
-		if(user.getLocation()==null)
-			location="null";
-		else
-			location=user.getLocation();
-		Map<String, Object> parameters = new HashMap<String, Object>();
-		parameters.put("user_id", user.getId());
-		parameters.put("name", user.getName());
-		parameters.put("screen_name", user.getScreenName());
-		parameters.put("location", location);
-		parameters.put("followers", user.getFollowersCount());
-		parameters.put("following", user.getFriendsCount());
-		
-		//Run the query
-		this.session.run(query, parameters);
-	}
 	
-	//Extracts users with no other information but the user_id
-	public static long[] extractUsers(){
-		GraphDBManager gdbm = new GraphDBManager();
-		Session session = gdbm.getSession();
-		String query = "MATCH (u:User) WHERE NOT EXISTS(u.name) RETURN u.user_id as user_id order by user_id asc";
-		StatementResult sr = session.run(query);
-		List<Long> ids = new ArrayList<Long>();
-		for(Record r : sr.list()){
-			long id = r.get(0).asLong();
-			ids.add(id);
-		}
-		long[] result = ids.stream().mapToLong(l -> l).toArray();
-		return result;
-	}
+	
+	
 	
 	public static ResponseList<User> lookupUsers(long id){
-		String[] auth = null;
-		auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
-		ConfigurationBuilder cb = new ConfigurationBuilder();
-		cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
-				.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
-        Twitter twitter = new TwitterFactory(cb.build()).getInstance();
+		ConfigurationBuilder cb = getConfigurationBuilder();
+		Twitter twitter = new TwitterFactory(cb.build()).getInstance();
         try {
 			return twitter.lookupUsers(id);
 		} catch (TwitterException e) {
@@ -154,7 +117,7 @@ public class TwitterManager {
 		
 	}
 	
-	private static List<long []> moreThan100Users(long[] ids){
+	private static List<long []> moreThan100Elements(long[] ids){
 		int nUsersInt = ids.length;
 		double nArrays = nUsersInt/100;	//<-----number of arrays which will have 100 users
 		List<long []> arrays = new ArrayList<long []>();
@@ -167,12 +130,189 @@ public class TwitterManager {
 		return arrays;
 	}
 	
+	
+	private static ConfigurationBuilder getConfigurationBuilder(){
+	String[] auth = null;
+	auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
+	ConfigurationBuilder cb = new ConfigurationBuilder();
+	cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
+			.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
+	return cb;
+}
+	
+	
+public static long[] extractTweets(GraphDBManager gdbm) {
+		Session session = gdbm.getSession();
+		String query = "MATCH (t:Tweet) WHERE NOT EXISTS(t.text) RETURN t.tweet_id as tweet_id";
+		StatementResult sr = session.run(query);
+		List<Long> ids = new ArrayList<Long>();
+		for(Record r : sr.list()){
+			long id = r.get(0).asLong();
+			ids.add(id);
+		}
+		if(ids.size()==0){
+			System.out.println("No tweet matched.");
+		}
+		else
+			System.out.println("Matched tweet: "+ids.size());
+		
+			
+		long[] result = ids.stream().mapToLong(l -> l).toArray();
+		return result;
+	}
+
+//Extracts users with no other information but the user_id
+	public static long[] extractUsers(GraphDBManager gdbm){
+		Session session = gdbm.getSession();
+		String query = "MATCH (u:User) WHERE NOT EXISTS(u.name) RETURN u.user_id as user_id order by user_id asc";
+		StatementResult sr = session.run(query);
+		List<Long> ids = new ArrayList<Long>();
+		for(Record r : sr.list()){
+			long id = r.get(0).asLong();
+			ids.add(id);
+		}
+		if(ids.size()==0){
+			System.out.println("No users matched.");
+		}
+		else
+			System.out.println("Matched users: "+ids.size());
+			
+		long[] result = ids.stream().mapToLong(l -> l).toArray();
+		return result;
+	}
+	
+	public static void fillUpUser(User user){
+		String query = 
+				"MATCH (u:User{user_id:{user_id}})"
+				+"\n SET u.name={name}, u.screen_name={screen_name}, u.location={location}, u.followers={followers}, u.following={following}";
+		String location = "";
+		if(user.getLocation()==null)
+			location="null";
+		else
+			location=user.getLocation();
+		Map<String, Object> parameters = new HashMap<String, Object>();
+		parameters.put("user_id", user.getId());
+		parameters.put("name", user.getName());
+		parameters.put("screen_name", user.getScreenName());
+		parameters.put("location", location);
+		parameters.put("followers", user.getFollowersCount());
+		parameters.put("following", user.getFriendsCount());
+		
+		//Run the query
+		session.run(query, parameters);
+	}
+	
+	public static void fillUpStatus(Status status) {
+		Map<String, Object> parameters = new HashMap<String, Object>();
+		String query = 
+				"MATCH (t:Tweet{tweet_id:{tweet_id}})"
+				+"\n SET t.text={text}, t.location={location}, t.created_at={created_at}, t.language={language}, "
+				+ "t.retweetcount={retweetcount}, t.likecount={likecount}";
+		String location = "";
+		if(status.getPlace()!=null)
+			location=status.getPlace().getName()+", "+status.getPlace().getCountry();
+		else
+			location="null";
+		query += "\nCREATE (t)-[:SENT_FROM]->(s:Source{name:{source}})";
+		query += "\nMERGE (u:User{user_id:{user_id}})-[:POSTS]->(t)";
+		
+		User user = status.getUser();
+		String temp = status.getSource();
+		temp = temp.split(">")[1];
+		temp = temp.substring(0, temp.length()-3);
+		
+		int nHashtag = 0;
+		for(HashtagEntity h : status.getHashtagEntities()){
+			nHashtag++;
+			parameters.put("tag"+nHashtag, h.getText().toLowerCase());
+			query+="\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+		}	
+		
+		
+		int nMentions = 0;
+		for(UserMentionEntity ume : status.getUserMentionEntities()){
+			nMentions++;
+			parameters.put("mentioned_id"+nMentions, ume.getId());
+			query += "\nMERGE (user_mentioned"+nMentions+":User{user_id:{mentioned_id"+nMentions+"}})"
+						+ " CREATE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
+		}
+		
+		parameters.put("tweet_id", status.getId());
+		parameters.put("text", status.getText());
+		parameters.put("location", location);
+		parameters.put("created_at", status.getId());
+		parameters.put("created_at", Utilities.convertDate(status.getCreatedAt()));
+		parameters.put("retweetcount", status.getRetweetCount());
+		parameters.put("likecount", status.getFavoriteCount());
+		parameters.put("source", temp);
+		parameters.put("user_id", user.getId());
+		parameters.put("language", status.getLang());
+		
+		session.run(query, parameters);
+		
+	}
+
+
+	public static Set<Status> lookupTweets(long[] ids){
+
+		ConfigurationBuilder cb = getConfigurationBuilder();
+        Twitter twitter = new TwitterFactory(cb.build()).getInstance();
+        if(ids.length<=100){
+        	
+        	try {
+        		Set<Status> statusSet = new HashSet<Status>();
+        		statusSet.addAll(twitter.lookup(ids));
+        		return statusSet;
+        	//	statusSet = (Set<Status>) twitter.lookup(ids);
+			} catch (TwitterException e) {
+				System.out.print("Lookup failed");
+				if(e.exceededRateLimitation())
+					System.out.println(" due to exceeded rate limitation.");
+				if(e.getErrorCode()==17)
+				System.out.println(": tweet(s) not found.");
+				return null;
+			}
+        }
+        else{
+        	List<long[]> idArrays = moreThan100Elements(ids);
+        	ResponseList<Status> totalStatuses = null;
+        	ResponseList<Status> previousStatuses = null;
+        	try{
+        		totalStatuses = twitter.lookup(idArrays.get(0));
+        		previousStatuses = twitter.lookup(idArrays.get(0));
+        	}
+        	catch (TwitterException e) {
+				System.out.print("Lookup failed");
+				if(e.exceededRateLimitation())
+					System.out.println(" due to exceeded rate limitation.");
+				if(e.getErrorCode()==17)
+				System.out.println(": tweet(s) not found.");
+			}
+        	
+        	for(int i = 1;i<idArrays.size();i++){
+        		try {
+					ResponseList<Status> currentStatuses = twitter.lookup(idArrays.get(i));
+					Stream.of(previousStatuses, currentStatuses).forEach(totalStatuses::addAll);
+					previousStatuses = currentStatuses;
+				} catch (TwitterException e) {
+					System.out.print("Lookup failed");
+					if(e.exceededRateLimitation())
+						System.out.println(" due to exceeded rate limitation.");
+					if(e.getErrorCode()==17)
+					System.out.println(": tweet(s) not found.");
+				}
+        	}
+        	
+        	Set<Status> statusSet = new HashSet<>();
+    		statusSet.addAll(totalStatuses);
+    		return statusSet;
+        	
+    	}
+	}
+	
+	
 	public static Set<User> lookupUsers(long[] ids){
-		String[] auth = null;
-		auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
-		ConfigurationBuilder cb = new ConfigurationBuilder();
-		cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
-				.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
+		ConfigurationBuilder cb = getConfigurationBuilder();
         Twitter twitter = new TwitterFactory(cb.build()).getInstance();
         if(ids.length<=100){
         	try {
@@ -185,12 +325,12 @@ public class TwitterManager {
 					System.out.println(" due to exceeded rate limitation.");
 				if(e.getErrorCode()==17)
 				System.out.println(": user(s) not found.");
-				System.exit(-1);
+				return null;
 			}
         	
         }
         else{
-        	List<long[]> idArrays = moreThan100Users(ids);
+        	List<long[]> idArrays = moreThan100Elements(ids);
         	ResponseList<User> totalUsers = null;
         	ResponseList<User> previousUsers = null;
         	try{
@@ -225,7 +365,6 @@ public class TwitterManager {
         	
     		
         }
-		return null;
 		
 		
 	}
@@ -240,12 +379,25 @@ public static void insertTweet(Session session, String about, Status status) {
 		else
 			location = "null";
 		
+		String query = "";
+		
+		//Query
+				query += 	
+						"\nCREATE (t:Tweet{tweet_id:{tweet_id}})"
+						+ " SET t.text={text}, t.created_at={created_at}, t.about={about}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
+				query += 
+						"\nMERGE (u:User{user_id:{user_id}})"
+						+ " SET u.screen_name={screen_name}, u.name={name}, u.location={user_location}, u.followers={followers}, u.following={following}";
+				query += 
+						"\nMERGE (u)-[:POSTS]->(t)";
+				query += ""
+						+ "\nMERGE (t)-[:SENT_FROM]->(source:Source{name:{source}})";
+		
 		//Tweet properties
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("tweet_id", status.getId());
 		parameters.put("text", status.getText());
 		parameters.put("created_at", Utilities.convertDate(status.getCreatedAt()));
-		parameters.put("user", status.getUser().getScreenName());
 		parameters.put("about", about);
 		parameters.put("retweetcount", status.getRetweetCount());
 		parameters.put("likecount", status.getFavoriteCount());
@@ -262,12 +414,11 @@ public static void insertTweet(Session session, String about, Status status) {
 		parameters.put("following", user.getFriendsCount());
 		
 		//Hashtag property
-		String storeHashtags = "";
 		int nHashtag = 0;
 		for(HashtagEntity h : status.getHashtagEntities()){
 			nHashtag++;
 			parameters.put("tag"+nHashtag, h.getText().toLowerCase());
-			storeHashtags="MERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query+="\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
 		}			
 		
 		//Mentions
@@ -276,7 +427,7 @@ public static void insertTweet(Session session, String about, Status status) {
 		for(UserMentionEntity ume : status.getUserMentionEntities()){
 			nMentions++;
 			parameters.put("mentioned_id"+nMentions, ume.getId());
-			storeMentions = "MERGE (user_mentioned"+nMentions+":User{user_id:{mentioned_id"+nMentions+"}})"
+			query += "\nMERGE (user_mentioned"+nMentions+":User{user_id:{mentioned_id"+nMentions+"}})"
 						+ " CREATE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
 		}
 
@@ -290,26 +441,16 @@ public static void insertTweet(Session session, String about, Status status) {
 				String repliesTo = "";
 				if(status.getInReplyToStatusId()!=-1){
 					parameters.put("replies", status.getInReplyToStatusId());
-					repliesTo = "MERGE (replied:Tweet{tweet_id:{replies}})"
+					query += "\nMERGE (replied:Tweet{tweet_id:{replies}})"
 							+ "\n MERGE (t)-[:REPLIES_TO]->(replied)";
 				}
 		
 		
-		//Query
-		String storeTweet = 	
-				"CREATE (t:Tweet{tweet_id:{tweet_id}})"
-				+ " SET t.text={text}, t.created_at={created_at}, t.user={user}, t.about={about}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
-		String storeUser = 
-				"MERGE (u:User{user_id:{user_id}})"
-				+ " SET u.screen_name={screen_name}, u.name={name}, u.location={user_location}, u.followers={followers}, u.following={following}";
-		String storeRelationship = 
-				"MERGE (u)-[:POSTS]->(t)";
-		String storeSource = ""
-				+ "MERGE (t)-[:SENT_FROM]->(source:Source{name:{source}})";
-		String finalQuery = storeTweet+"\n"+storeUser+"\n"+storeRelationship+"\n"+storeHashtags+"\n"+storeMentions+"\n"+storeSource+"\n"+repliesTo;
+		
+
 		
 		//Run the query
-		session.run(finalQuery, parameters);
+		session.run(query, parameters);
 		
 	}
 	
@@ -343,7 +484,6 @@ public static void insertTweet(Session session, String about, Status status) {
 		parameters.put("tweet_id", status.getId());
 		parameters.put("text", status.getText());
 		parameters.put("created_at", Utilities.convertDate(status.getCreatedAt()));
-		parameters.put("user", status.getUser().getScreenName());
 		parameters.put("about", about);			
 		parameters.put("retweetcount", status.getRetweetCount());			
 		parameters.put("likecount", status.getFavoriteCount());			
@@ -438,7 +578,7 @@ public static void insertTweet(Session session, String about, Status status) {
 		//Query
 		String storeTweet = 	
 				"CREATE (t:Tweet{tweet_id:{tweet_id}})"
-				+ " SET t.text={text}, t.language={language}, t.created_at={created_at}, t.user={user}, t.about={about}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
+				+ " SET t.text={text}, t.language={language}, t.created_at={created_at},  t.about={about}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
 		String storeReTweet = 	
 				"MERGE (rt:Tweet{tweet_id:{re_tweet_id}})"
 				+ " ON MATCH SET rt.retweetcount={re_retweetcount}, rt.likecount={re_likecount}"
@@ -665,4 +805,8 @@ public static void insertTweet(Session session, String about, Status status) {
 	public static void setTopic(String topic) {
 		TwitterManager.topic = topic;
 	}
+
+	
+
+	
 }
