@@ -1,7 +1,5 @@
 package stream_data;
 
-import java.awt.Dimension;
-import java.awt.Font;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -15,15 +13,7 @@ import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Stream;
 
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
-import javax.swing.JLabel;
 import javax.swing.JOptionPane;
-import javax.swing.JTextField;
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
-import javax.swing.plaf.ColorUIResource;
-
 import org.neo4j.driver.v1.Record;
 import org.neo4j.driver.v1.Session;
 import org.neo4j.driver.v1.StatementResult;
@@ -42,24 +32,31 @@ import twitter4j.User;
 import twitter4j.UserMentionEntity;
 import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
+import utilities.Utilities;
 
 public class TwitterManager {
 
 	private static Session session;
 	private static ConfigurationBuilder cb;
-	private static Icon icon =  new ImageIcon("config/icon.png");
 	private static String topic;
 	private Configuration config;
 	private StatusListener listener;
+	private static String [] keywords;
+	private static List<String> languagesList;
+	private static String timeFilter;
+	private static String devAccount1;
+	private static String devAccount2;
 	
 	public TwitterManager(LinkedBlockingQueue<Status> queue){
-		String[] arguments;
+		String[] credentials;
 		try {
-			arguments = readTwitterAuth();
+			readSettings();
+			credentials = readTwitterAuth();
 			cb = new ConfigurationBuilder();
-			cb.setDebugEnabled(true).setOAuthConsumerKey(arguments[0]).setOAuthConsumerSecret(arguments[1]).setOAuthAccessToken(arguments[2]).setOAuthAccessTokenSecret(arguments[3]);
+			cb.setDebugEnabled(true).setOAuthConsumerKey(credentials[0]).setOAuthConsumerSecret(credentials[1]).setOAuthAccessToken(credentials[2]).setOAuthAccessTokenSecret(credentials[3]);
 			setConfig(cb.build());
 			setListener(queue);
+			
 			
 		} 
 		catch (FileNotFoundException e) {
@@ -71,11 +68,65 @@ public class TwitterManager {
 	
 	public TwitterManager(){
 		GraphDBManager gdbm = new GraphDBManager();
-		this.session = gdbm.getSession();
+		session = gdbm.getSession();
+	}
+	
+	private static void readSettings(){
+		boolean success = false;
+		String file = "setting.txt";
+		languagesList = new ArrayList<>();
+		while(!success){
+			Scanner sc = null;
+			try {
+				sc = new Scanner(new File(file));
+				success = true;
+				while(sc.hasNextLine()){
+					
+					String line = sc.nextLine();
+					if(line.length()>0){
+						if(line.startsWith("keywords"))
+							keywords=line.split("=")[1].split(",");
+						if(line.startsWith("all") || line.startsWith("en") || line.startsWith("it") || line.startsWith("es") || line.startsWith("fr") || line.startsWith("pt") || line.startsWith("de") || line.startsWith("zh") || line.startsWith("tr") || line.startsWith("in") || line.startsWith("ja"))
+							if(line.substring(3, line.length()).equals("true"))
+								languagesList.add(line.substring(0, 2));
+						
+						if(line.startsWith("topic"))
+							topic=line.split("=")[1];
+						if(line.startsWith("timeFilter"))
+							setTimeFilter(line.split("=")[1]);
+						if(line.startsWith("devAccount1"))
+							devAccount1=line.substring(12, line.length());
+						if(line.startsWith("devAccount2"))
+							devAccount2=line.substring(12, line.length());
+				
+			}
+				}		
+				sc.close();
+			} catch (FileNotFoundException e1) {
+				file = JOptionPane.showInputDialog(null, "File not found. Please type its location below (press 0 to exit):");
+				if(file.equals("0"))
+					System.exit(0);
+			}
+			
+			
+			
+		}
+		
 	}
 	
 	
-	
+	public static boolean checkTime(java.util.Date startDate, Status status, boolean checkTime){
+		if(!checkTime)
+			return true;
+		else{
+			if(status.isRetweet())
+			status = status.getRetweetedStatus();
+		if(startDate.before(status.getCreatedAt()))
+			return true;
+		return false;
+		}
+		
+	}
 	
 	
 	public static ResponseList<User> lookupUsers(long id){
@@ -183,11 +234,11 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 	
 	public static void fillUpUser(User user){
 		String query = 
-				"MATCH (u:User{user_id:{user_id}})"
-				+"\n SET u.name={name}, u.screen_name={screen_name}, u.location={location}, u.followers={followers}, u.following={following}";
+				"MERGE (u:User{user_id:{user_id}})"
+				+"\n SET u.name={name}, u.screen_name={screen_name}, u.location={location}, u.followers={followers}, u.following={following}, u.verified={verified}";
 		String location = "";
 		if(user.getLocation()==null)
-			location="null";
+			location="nd";
 		else
 			location=user.getLocation();
 		Map<String, Object> parameters = new HashMap<String, Object>();
@@ -197,6 +248,8 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 		parameters.put("location", location);
 		parameters.put("followers", user.getFollowersCount());
 		parameters.put("following", user.getFriendsCount());
+		parameters.put("verified", user.isVerified());
+		
 		
 		//Run the query
 		session.run(query, parameters);
@@ -212,9 +265,12 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 		if(status.getPlace()!=null)
 			location=status.getPlace().getName()+", "+status.getPlace().getCountry();
 		else
-			location="null";
+			location="nd";
 		query += "\nCREATE (t)-[:SENT_FROM]->(s:Source{name:{source}})";
-		query += "\nMERGE (u:User{user_id:{user_id}})-[:POSTS]->(t)";
+		query += "\nMERGE (u:User{user_id:{user_id}})"
+				+ "\nSET u.name={name}, u.screen_name={screen_name}, u.location={u_location}, u.followers={followers}, u.following={following}, u.verified={verified}";
+		query += "\nMERGE (u)-[:POSTS]->(t)";
+		
 		
 		User user = status.getUser();
 		String temp = status.getSource();
@@ -225,7 +281,8 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 		for(HashtagEntity h : status.getHashtagEntities()){
 			nHashtag++;
 			parameters.put("tag"+nHashtag, h.getText().toLowerCase());
-			query+="\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query += "\nMERGE (h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query+="\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+")";
 		}	
 		
 		
@@ -234,9 +291,10 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 			nMentions++;
 			parameters.put("mentioned_id"+nMentions, ume.getId());
 			query += "\nMERGE (user_mentioned"+nMentions+":User{user_id:{mentioned_id"+nMentions+"}})"
-						+ " CREATE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
+						+ " MERGE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
 		}
 		
+		//Tweet properties
 		parameters.put("tweet_id", status.getId());
 		parameters.put("text", status.getText());
 		parameters.put("location", location);
@@ -245,8 +303,24 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 		parameters.put("retweetcount", status.getRetweetCount());
 		parameters.put("likecount", status.getFavoriteCount());
 		parameters.put("source", temp);
-		parameters.put("user_id", user.getId());
 		parameters.put("language", status.getLang());
+		
+		String u_location = "";
+		if(user.getLocation()!=null)
+			u_location=user.getLocation();
+		else
+			u_location="nd";
+		
+		
+		//User properties
+		parameters.put("user_id", user.getId());
+		parameters.put("name", user.getName());
+		parameters.put("screen_name", user.getScreenName());
+		parameters.put("u_location", u_location);
+		parameters.put("followers", user.getFollowersCount());
+		parameters.put("following", user.getFriendsCount());
+		parameters.put("verified", user.isVerified());
+		
 		
 		session.run(query, parameters);
 		
@@ -377,7 +451,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 		if(status.getPlace()!=null)
 			location = status.getPlace().getName();
 		else
-			location = "null";
+			location = "nd";
 		
 		String query = "";
 		
@@ -387,7 +461,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 						+ " SET t.text={text}, t.created_at={created_at}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
 				query += 
 						"\nMERGE (u:User{user_id:{user_id}})"
-						+ " SET u.screen_name={screen_name}, u.name={name}, u.location={user_location}, u.followers={followers}, u.following={following}";
+						+ " SET u.screen_name={screen_name}, u.name={name}, u.location={user_location}, u.followers={followers}, u.following={following}, u.verified={verified}";
 				query += 
 						"\nMERGE (u)-[:POSTS]->(t)";
 				query += ""
@@ -408,20 +482,25 @@ public static void insertTweet(Session session, String topic, Status status) {
 		parameters.put("user_id", user.getId());
 		parameters.put("screen_name", user.getScreenName());
 		parameters.put("name", user.getName());
-		parameters.put("user_location", user.getLocation());
+		String user_location = "null";
+		if(user.getLocation()!=null)
+			user_location=user.getLocation();
+	//	System.out.println(user.getLocation());
+		parameters.put("user_location", user_location);
 		parameters.put("followers", user.getFollowersCount());
 		parameters.put("following", user.getFriendsCount());
+		parameters.put("verified", user.isVerified());
 		
 		//Hashtag property
 		int nHashtag = 0;
 		for(HashtagEntity h : status.getHashtagEntities()){
 			nHashtag++;
 			parameters.put("tag"+nHashtag, h.getText().toLowerCase());
-			query+="\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query += "\nMERGE (h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query += "\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+")";
 		}			
 		
 		//Mentions
-		String storeMentions = "";
 		int nMentions = 0;
 		for(UserMentionEntity ume : status.getUserMentionEntities()){
 			nMentions++;
@@ -430,21 +509,29 @@ public static void insertTweet(Session session, String topic, Status status) {
 						+ " CREATE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
 		}
 
+	
 		//Source
 		String temp = status.getSource();
-		temp = temp.split(">")[1];
-		temp = temp.substring(0, temp.length()-3);
-		parameters.put("source", temp);
+		if(temp.contains(">")){
+			temp = temp.split(">")[1];
+			temp = temp.substring(0, temp.length()-3);
+			parameters.put("source", temp);
+		}
+		else
+			parameters.put("source", "nd");
+
+		
 		
 		//Replies to
-				String repliesTo = "";
 				if(status.getInReplyToStatusId()!=-1){
 					parameters.put("replies", status.getInReplyToStatusId());
 					query += "\nMERGE (replied:Tweet{tweet_id:{replies}})"
 							+ "\n MERGE (t)-[:REPLIES_TO]->(replied)";
 				}
 		
-		query += "\nMERGE (t)-[:ABOUT]->(tv:Topic{name:{topic}})";
+		query += "\nMERGE (tv:Topic{name:{topic}})";
+		query += "\nCREATE (t)-[:ABOUT]->(tv)";
+		
 		parameters.put("topic", topic);
 				
 		
@@ -468,7 +555,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 		if(retweet.getPlace()!=null)
 			re_location = retweet.getPlace().getName();
 		else
-			re_location = "null";
+			re_location = "nd";
 		
 		//Retweet properties
 		Map<String, Object> parameters = new HashMap<String, Object>();
@@ -485,7 +572,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 		if(status.getPlace()!=null)
 			location = retweet.getPlace().getName();
 		else
-			location = "null";
+			location = "nd";
 		
 		//Tweet properties
 		parameters.put("tweet_id", status.getId());
@@ -496,23 +583,32 @@ public static void insertTweet(Session session, String topic, Status status) {
 		parameters.put("location", location);
 		parameters.put("language", status.getLang());
 		
+		String o_user_location = "null";
+		
 		//Original User properties
 		User o_user = retweet.getUser();
 		parameters.put("ouser_id", o_user.getId());
 		parameters.put("oscreen_name", o_user.getScreenName());
 		parameters.put("oname", o_user.getName());
-		parameters.put("ouser_location", o_user.getLocation());
+		if(o_user.getLocation()!=null)
+			o_user_location=o_user.getLocation();
+		parameters.put("ouser_location", o_user_location);
 		parameters.put("ofollowers", o_user.getFollowersCount());
 		parameters.put("ofollowing", o_user.getFriendsCount());
+		parameters.put("overified", o_user.isVerified());
 		
+		String user_location = "null";
 		//User properties
 		User user = status.getUser();
 		parameters.put("user_id", user.getId());
 		parameters.put("screen_name", user.getScreenName());
 		parameters.put("name", user.getName());
-		parameters.put("user_location", user.getLocation());
+		if(user.getLocation()!=null)
+			user_location=user.getLocation();
+		parameters.put("user_location", user_location);
 		parameters.put("followers", user.getFollowersCount());
 		parameters.put("following", user.getFriendsCount());
+		parameters.put("verified", user.isVerified());
 		
 		//Retweet: Hashtag property
 		int nHashtag = 0;
@@ -520,14 +616,16 @@ public static void insertTweet(Session session, String topic, Status status) {
 		for(HashtagEntity h : retweet.getHashtagEntities()){
 			nHashtag++;
 			parameters.put("tag"+nHashtag, h.getText().toLowerCase());
-			query+="\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query += "\nMERGE (h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query += "\nMERGE (rt)-[:TAGS]->(h"+(nHashtag)+")";
 		}
 		
 		//Tweet: Hashtag property
 		for(HashtagEntity h : status.getHashtagEntities()){
 			nHashtag++;
 			parameters.put("tag"+nHashtag, h.getText().toLowerCase());
-			query+="\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query += "\nMERGE (h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+			query += "\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+")";
 		}	
 		
 		
@@ -550,14 +648,24 @@ public static void insertTweet(Session session, String topic, Status status) {
 		
 		//Source
 		String temp = status.getSource();
-		temp = temp.split(">")[1];
-		temp = temp.substring(0, temp.length()-3);
-		parameters.put("source", temp);
+		if(temp.contains(">")){
+			temp = temp.split(">")[1];
+			temp = temp.substring(0, temp.length()-3);
+			parameters.put("source", temp);
+		}
+		else
+			parameters.put("source", "nd");
+		
 		//RetweetSource 
 		temp = retweet.getSource();
-		temp = temp.split(">")[1];
-		temp = temp.substring(0, temp.length()-3);
-		parameters.put("rtsource", temp);
+		if(temp.contains(">")){
+			temp = temp.split(">")[1];
+			temp = temp.substring(0, temp.length()-3);
+			parameters.put("rtsource", temp);
+		}
+		else
+			parameters.put("rtsource", "nd");
+		
 		
 		//Replies to
 		if(status.getInReplyToStatusId()!=-1){
@@ -577,9 +685,9 @@ public static void insertTweet(Session session, String topic, Status status) {
 		
 		//Query
 				query+="\nMERGE (ou:User{user_id:{ouser_id}})"
-				+ " SET ou.followers={ofollowers}, ou.following={ofollowing}, ou.screen_name={oscreen_name}, ou.location={ouser_location}, ou.name={oname}";
+				+ " SET ou.followers={ofollowers}, ou.following={ofollowing}, ou.screen_name={oscreen_name}, ou.location={ouser_location}, ou.name={oname}, ou.verified={overified}";
 				query+="\nMERGE (u:User{user_id:{user_id}})"
-				+ " SET u.followers={followers}, u.following={following}, u.screen_name={screen_name}, u.location={user_location}, u.name={name}";
+				+ " SET u.followers={followers}, u.following={following}, u.screen_name={screen_name}, u.location={user_location}, u.name={name}, u.verified={verified}";
 				query+="\nMERGE (ou)-[:POSTS]->(rt)";
 				query+="\nMERGE (u)-[:POSTS]->(t)";
 				query+="\nCREATE (t)-[:RETWEETS]->(rt)";
@@ -587,9 +695,10 @@ public static void insertTweet(Session session, String topic, Status status) {
 				query+="\nMERGE (rt)-[:SENT_FROM]->(rtsource:Source{name:{rtsource}})";
 		
 		
-		query += "\nMERGE (t)-[:ABOUT]->(tv:Topic{name:{topic}})";
 		parameters.put("topic", topic);
 		
+		query += "\nMERGE (tv:Topic{name:{topic}})";
+		query += "\nCREATE (t)-[:ABOUT]->(tv)";
 		query += "\nMERGE (rt)-[:ABOUT]->(tv)";
 		
 		//Run the query
@@ -598,28 +707,23 @@ public static void insertTweet(Session session, String topic, Status status) {
 	}
 	
 	
+	
+	
 	public static String[] readTwitterAuth() throws FileNotFoundException {
-		UIManager.put("OptionPane.background", new ColorUIResource(214,227,249));
-		 UIManager.put("Panel.background",new ColorUIResource(214,227,249));
-		 Dimension size = UIManager.getDimension("OptionPane.minimumSize");
-		 size.width = 450;
-		 size.height= 150;
-		 UIManager.put("OptionPane.minimumSize", size);
-		 JLabel message = new JLabel();
-		 message.setText("Scegliere credenziali dev.twitter.com");
-		 message.setFont(new Font("Calibri", Font.BOLD, 20));
-		 String [] options = {"1", "2"};
-		 int scelta = JOptionPane.showOptionDialog(null, message, "Credenziali", 2, 0, icon, options, options[0]);
-		 if(scelta==0)
-			 return readTwitterAuth("config/credenziali_twitter2.txt");
-		 if(scelta==1)
-			 return readTwitterAuth("config/credenziali_twitter3.txt");
-		 if(scelta!=0 && scelta!=1){
-			 System.out.println("Error: twitter dev account not chosen");
-			 System.exit(-1);
-		 }
-			
-		 return null;
+		
+		if(devAccount1.equals("true")){
+			return readTwitterAuth("config/credenziali_twitter2.txt");
+		}
+		else{
+			if(devAccount2.equals("true"))
+				return readTwitterAuth("config/credenziali_twitter3.txt");
+			else{
+				JOptionPane.showMessageDialog(null, "Error: twitter dev account not chosen");
+				System.exit(-1);
+			}
+		}
+			 
+		return null;
 	}
 	
 	public static String [] readTwitterAuth(String file){
@@ -648,30 +752,6 @@ public static void insertTweet(Session session, String topic, Status status) {
 		return output;
 	}
 	
-	private static FilterQuery importLanguagesInQuery(FilterQuery query, String[] lang) {
-		if(lang.length==0)
-			return query.language();
-		if(lang.length==1)
-			return query.language(lang[0]);
-		if(lang.length==2)
-			return query.language(lang[0], lang[1]);
-		if(lang.length==3)
-			return query.language(lang[0], lang[1], lang[2]);
-		if(lang.length==4)
-			return query.language(lang[0], lang[1], lang[2], lang[3]);
-		if(lang.length==5)
-			return query.language(lang[0], lang[1], lang[2], lang[3], lang[4]);
-		if(lang.length==6)
-			return query.language(lang[0], lang[1], lang[2], lang[3], lang[4], lang[5]);
-		if(lang.length==7)
-			return query.language(lang[0], lang[1], lang[2], lang[3], lang[4], lang[5], lang[6]);
-		if(lang.length==8)
-			return query.language(lang[0], lang[1], lang[2], lang[3], lang[4], lang[5], lang[6], lang[7]);
-		return null;
-		
-	}
-
-
 	public Configuration getConfig() {
 		return config;
 	}
@@ -722,67 +802,14 @@ public static void insertTweet(Session session, String topic, Status status) {
 		};
 	}
 	
-	public static List<Object> insertMultipleValues() throws ClassNotFoundException, InstantiationException, IllegalAccessException, UnsupportedLookAndFeelException{
-
-		   JTextField key = new JTextField();
-		   JTextField lang = new JTextField();
-		   JTextField topic = new JTextField();
-		   JLabel label = new JLabel();
-		   label.setText("Inserire i parametri: ");
-		   label.setFont(new Font("Calibri", Font.BOLD, 20));
-		   Object[] message = {label, "Keywords:", key, "Languages:", lang, "Topic:", topic};
-		   Dimension size = UIManager.getDimension("OptionPane.minimumSize");
-		   size.width = 450;
-		   size.height= 300;
-		   UIManager.put("OptionPane.background", new ColorUIResource(214,227,249));
-		   UIManager.put("Panel.background",new ColorUIResource(214,227,249));
-		   int option = JOptionPane.showConfirmDialog(null, message, "Producer", JOptionPane.OK_CANCEL_OPTION, 0, icon);
-		   
-		   while(option != JOptionPane.OK_OPTION || key.getText().length()<1){
-					if(noParamsChosen()==0){
-						option = JOptionPane.showConfirmDialog(null, message, "Producer", JOptionPane.OK_CANCEL_OPTION, 0, icon);
-						if(option == JOptionPane.OK_OPTION && key.getText().length()>1 && lang.getText().length()>=2)
-							break;
-					}
-					else{
-						System.exit(-1);
-					}
-						
-				}
-		   
-		   String [] keywords = key.getText().split(",");
-		   String [] languages = lang.getText().split(",");
-		   String topicScelto = topic.getText();
-		   List<Object> output = new ArrayList<Object>();
-		   output.add(keywords);
-		   output.add(languages);
-		   output.add(topicScelto);
-		   setTopic(topicScelto);
-		   return output;
-	}
-	
-	private static int noParamsChosen() throws ClassNotFoundException, InstantiationException, IllegalAccessException, UnsupportedLookAndFeelException{
-		JLabel label2 = new JLabel("<html>Parametri non inseriti correttamente.<br>Riprovare?</html>");
-		label2.setFont(new Font("Calibri", Font.BOLD, 20));
-		String [] errorOptions = {"Riprova", "Esci"};
-		return JOptionPane.showOptionDialog(null, label2, "Topic", 0, 0, icon, errorOptions, "Riprova");
-		}
 	
 	
-	
-
-
-	public FilterQuery setQueryParameters() throws ClassNotFoundException, InstantiationException, IllegalAccessException, UnsupportedLookAndFeelException {
+	public FilterQuery setQueryParameters(){
 		FilterQuery query = new FilterQuery();
-		
-		List<Object> params = insertMultipleValues();
-		String [] lang = (String[]) params.get(1);
-		String [] keyWords = (String[]) params.get(0);
-		query.track(keyWords);
-		if(lang.length>0)
-			query = importLanguagesInQuery(query, lang);
+		if(!languagesList.contains("all"))
+			query.language(languagesList.toArray(new String[0]));
+		query.track(keywords);
 		return query;
-		
 	}
 
 
@@ -794,8 +821,19 @@ public static void insertTweet(Session session, String topic, Status status) {
 	public static void setTopic(String topic) {
 		TwitterManager.topic = topic;
 	}
+	
 
+	public String getTimeFilter() {
+		return timeFilter;
+	}
+
+	public static void setTimeFilter(String timeFilter) {
+		TwitterManager.timeFilter = timeFilter;
+	}
+
+
+	}
 	
 
 	
-}
+

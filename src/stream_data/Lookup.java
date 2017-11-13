@@ -32,7 +32,7 @@ public class Lookup {
 	
 	private static void lookupTweets(TwitterManager tm) {
 		long[] array = TwitterManager.extractTweets(gdbm);
-		if(array.length>0){
+		if(array!=null){
 			Set<Status> statusSet = TwitterManager.lookupTweets(array);
 			//Completing the info about the extracted tweets
 			for(Status s : statusSet)
@@ -44,11 +44,14 @@ public class Lookup {
 	public static void lookupUsers(TwitterManager tm){
 		//Extracting users which have no other info but the user_id
 		long[] array = TwitterManager.extractUsers(gdbm);
-		if(array.length>0){
+		if(array!=null){
 			Set<User> userSet = TwitterManager.lookupUsers(array);
-			//Completing the info about the extracted users
-			for(User u : userSet)
+			if(userSet!=null){
+				for(User u : userSet)
 				TwitterManager.fillUpUser(u);
+			}
+			//Completing the info about the extracted users
+			
 		}
 			
 		
