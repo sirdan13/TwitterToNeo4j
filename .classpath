@@ -36,5 +36,12 @@
 	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/neo4j-graphdb-api-3.0.1.jar"/>
 	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/neo4j-java-driver-1.4.3.jar"/>
 	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/neo4j-kernel-3.0.0-M03.jar"/>
+	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/kafka/guava-18.0.jar"/>
+	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/swingx-all-1.6.4.jar"/>
+	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/LGoodDatePicker-10.3.1.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="jar:file:/C:/Users/daniele/workspace/Libs/LGoodDatePicker-10.3.1-javadoc.jar!/"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

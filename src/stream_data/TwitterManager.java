@@ -11,12 +11,14 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Stream;
 
 import javax.swing.JOptionPane;
 import org.neo4j.driver.v1.Record;
 import org.neo4j.driver.v1.Session;
 import org.neo4j.driver.v1.StatementResult;
+import org.neo4j.driver.v1.exceptions.TransientException;
 
 import twitter4j.FilterQuery;
 import twitter4j.HashtagEntity;
@@ -38,6 +40,7 @@ public class TwitterManager {
 
 	private static Session session;
 	private static ConfigurationBuilder cb;
+	private static GraphDBManager gdbm;
 	private static String topic;
 	private Configuration config;
 	private StatusListener listener;
@@ -46,6 +49,7 @@ public class TwitterManager {
 	private static String timeFilter;
 	private static String devAccount1;
 	private static String devAccount2;
+	private static String devAccount3;
 	
 	public TwitterManager(LinkedBlockingQueue<Status> queue){
 		String[] credentials;
@@ -67,7 +71,7 @@ public class TwitterManager {
 	}
 	
 	public TwitterManager(){
-		GraphDBManager gdbm = new GraphDBManager();
+		gdbm = new GraphDBManager();
 		session = gdbm.getSession();
 	}
 	
@@ -98,6 +102,8 @@ public class TwitterManager {
 							devAccount1=line.substring(12, line.length());
 						if(line.startsWith("devAccount2"))
 							devAccount2=line.substring(12, line.length());
+						if(line.startsWith("devAccount3"))
+							devAccount3=line.substring(12, line.length());
 				
 			}
 				}		
@@ -135,11 +141,11 @@ public class TwitterManager {
         try {
 			return twitter.lookupUsers(id);
 		} catch (TwitterException e) {
-			System.out.print("Lookup failed");
+			System.out.println("Lookup failed");
 			if(e.exceededRateLimitation())
 				System.out.println(" due to exceeded rate limitation.");
 			if(e.getErrorCode()==17)
-			System.out.println(": user(s) not found.");
+			System.out.println("user(s) not found.");
 			System.exit(-1);
 		}
 		return null;
@@ -184,7 +190,8 @@ public class TwitterManager {
 	
 	private static ConfigurationBuilder getConfigurationBuilder(){
 	String[] auth = null;
-	auth = TwitterManager.readTwitterAuth("config/credenziali_twitter3.txt");
+	int randomNum = ThreadLocalRandom.current().nextInt(2, 4 + 1);
+	auth = TwitterManager.readTwitterAuth("config/credenziali_twitter"+randomNum+".txt");
 	ConfigurationBuilder cb = new ConfigurationBuilder();
 	cb.setDebugEnabled(true).setOAuthConsumerKey(auth[0]).setOAuthConsumerSecret(auth[1])
 			.setOAuthAccessToken(auth[2]).setOAuthAccessTokenSecret(auth[3]);
@@ -194,69 +201,107 @@ public class TwitterManager {
 	
 public static long[] extractTweets(GraphDBManager gdbm) {
 		Session session = gdbm.getSession();
-		String query = "MATCH (t:Tweet) WHERE NOT EXISTS(t.text) RETURN t.tweet_id as tweet_id";
-		StatementResult sr = session.run(query);
-		List<Long> ids = new ArrayList<Long>();
-		for(Record r : sr.list()){
-			long id = r.get(0).asLong();
-			ids.add(id);
-		}
-		if(ids.size()==0){
-			System.out.println("No tweet matched.");
-		}
-		else
-			System.out.println("Matched tweet: "+ids.size());
-		
+		String query = "MATCH (t:Tweet) WHERE NOT EXISTS(t.language) RETURN t.tweet_id as tweet_id";
+		StatementResult sr;
+		try{
+			sr = session.run(query);
+			List<Long> ids = new ArrayList<Long>();
+			for(Record r : sr.list()){
+				long id = r.get(0).asLong();
+				ids.add(id);
+			}
+			if(ids.size()==0){
+				System.out.println();
+				System.out.println("No tweet matched.");
+			}
+			else
+				System.out.println("Matched tweet: "+ids.size());
 			
-		long[] result = ids.stream().mapToLong(l -> l).toArray();
-		return result;
+				
+			long[] result = ids.stream().mapToLong(l -> l).toArray();
+			return result;
+		}
+		catch(TransientException e){
+			System.out.println("TransientException: couldn't run the query succesfully. Transaction canceled.");
+		}
+		return null;
+		
 	}
 
 //Extracts users with no other information but the user_id
 	public static long[] extractUsers(GraphDBManager gdbm){
 		Session session = gdbm.getSession();
-		String query = "MATCH (u:User) WHERE NOT EXISTS(u.name) RETURN u.user_id as user_id order by user_id asc";
+		String query = "MATCH (u:User) WHERE NOT EXISTS(u.verified) RETURN u.user_id as user_id order by user_id asc";
 		StatementResult sr = session.run(query);
 		List<Long> ids = new ArrayList<Long>();
 		for(Record r : sr.list()){
-			long id = r.get(0).asLong();
-			ids.add(id);
+			if(r.get(0)!=null){
+				long id = r.get(0).asLong();
+				ids.add(id);
+			}
+			
 		}
 		if(ids.size()==0){
 			System.out.println("No users matched.");
 		}
 		else
 			System.out.println("Matched users: "+ids.size());
-			
 		long[] result = ids.stream().mapToLong(l -> l).toArray();
 		return result;
 	}
 	
 	public static void fillUpUser(User user){
-		String query = 
-				"MERGE (u:User{user_id:{user_id}})"
-				+"\n SET u.name={name}, u.screen_name={screen_name}, u.location={location}, u.followers={followers}, u.following={following}, u.verified={verified}";
+		String query ="\nMERGE (ou:User{user_id:{ouser_id}})"
+				+ " SET ou.followers={ofollowers}, ou.following={ofollowing}, ou.screen_name={oscreen_name}, ou.location={ouser_location}, ou.name={oname}, ou.verified={overified}, ou.profileImage={oprofileImage}, ou.description={odescription}";
+			
 		String location = "";
 		if(user.getLocation()==null)
-			location="nd";
+			location="N/A";
 		else
 			location=user.getLocation();
 		Map<String, Object> parameters = new HashMap<String, Object>();
-		parameters.put("user_id", user.getId());
-		parameters.put("name", user.getName());
-		parameters.put("screen_name", user.getScreenName());
-		parameters.put("location", location);
-		parameters.put("followers", user.getFollowersCount());
-		parameters.put("following", user.getFriendsCount());
-		parameters.put("verified", user.isVerified());
+		parameters.put("ouser_id", user.getId());
+		parameters.put("oname", user.getName());
+		parameters.put("oscreen_name", user.getScreenName());
+		parameters.put("ouser_location", location);
+		parameters.put("ofollowers", user.getFollowersCount());
+		parameters.put("ofollowing", user.getFriendsCount());
+		parameters.put("overified", user.isVerified());
+		parameters.put("odescription", user.getDescription());
+		parameters.put("oprofileImage", user.getBiggerProfileImageURL());
 		
 		
 		//Run the query
-		session.run(query, parameters);
+		try{
+			session.run(query, parameters);
+		}
+		catch(TransientException e){
+			System.out.println("TransientException: couldn't run the query succesfully. Transaction canceled.");
+		}
+		
 	}
 	
 	public static void fillUpStatus(Status status) {
 		Map<String, Object> parameters = new HashMap<String, Object>();
+		
+		//Finds the shortest path from a tweet and the topic the tweet is related to
+		String topicQuery = "MATCH p=shortestPath((t:Tweet)-[*..2]-(m:Topic)) WHERE t.tweet_id={tweet_id} RETURN m.name";
+		Map<String, Object> paramTopicQuery = new HashMap<>();
+		paramTopicQuery.put("tweet_id", status.getId());
+		StatementResult sr = null;
+		String topic = "null";
+		try {
+			sr = session.run(topicQuery, paramTopicQuery);
+			if(sr.hasNext()){
+				Record r = sr.next();
+				topic = r.get("m.name").asString();
+			}
+			
+		} catch (TransientException e) {
+			System.out.println("TransientException: couldn't run the query succesfully. Transaction canceled.");
+		}
+		
+		
 		String query = 
 				"MATCH (t:Tweet{tweet_id:{tweet_id}})"
 				+"\n SET t.text={text}, t.location={location}, t.created_at={created_at}, t.language={language}, "
@@ -265,17 +310,30 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 		if(status.getPlace()!=null)
 			location=status.getPlace().getName()+", "+status.getPlace().getCountry();
 		else
-			location="nd";
+			location="N/A";
 		query += "\nCREATE (t)-[:SENT_FROM]->(s:Source{name:{source}})";
 		query += "\nMERGE (u:User{user_id:{user_id}})"
-				+ "\nSET u.name={name}, u.screen_name={screen_name}, u.location={u_location}, u.followers={followers}, u.following={following}, u.verified={verified}";
+				+ "\nSET u.name={name}, u.screen_name={screen_name}, u.location={u_location}, u.followers={followers}, u.following={following}, u.verified={verified}, u.description={description}, u.profileImage={profileImage}";
 		query += "\nMERGE (u)-[:POSTS]->(t)";
+		
+		if(!topic.equals("null")){
+			query += "\nMERGE (topic:Topic{name:{topic}})";
+			query += "\nMERGE (t)-[:ABOUT]->(topic)";
+			parameters.put("topic", topic);
+		}
+			
 		
 		
 		User user = status.getUser();
 		String temp = status.getSource();
-		temp = temp.split(">")[1];
-		temp = temp.substring(0, temp.length()-3);
+		if(temp.contains(">")){
+			temp = temp.split(">")[1];
+			temp = temp.substring(0, temp.length()-3);
+			parameters.put("source", temp);
+		}
+		else
+			parameters.put("source", "N/A");
+		
 		
 		int nHashtag = 0;
 		for(HashtagEntity h : status.getHashtagEntities()){
@@ -294,22 +352,31 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 						+ " MERGE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
 		}
 		
+		
+		if(status.getInReplyToStatusId()!=-1){
+			long replies;
+			replies=status.getInReplyToStatusId();
+			query += "\nMERGE (replied:Tweet{tweet_id:{replied}})";
+			query += "\nMERGE (t)-[:REPLIES_TO]->(replied)";
+			parameters.put("replied", replies);
+		}
+		
 		//Tweet properties
 		parameters.put("tweet_id", status.getId());
 		parameters.put("text", status.getText());
 		parameters.put("location", location);
-		parameters.put("created_at", status.getId());
 		parameters.put("created_at", Utilities.convertDate(status.getCreatedAt()));
 		parameters.put("retweetcount", status.getRetweetCount());
 		parameters.put("likecount", status.getFavoriteCount());
-		parameters.put("source", temp);
 		parameters.put("language", status.getLang());
+		
+	
 		
 		String u_location = "";
 		if(user.getLocation()!=null)
 			u_location=user.getLocation();
 		else
-			u_location="nd";
+			u_location="N/A";
 		
 		
 		//User properties
@@ -320,9 +387,16 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 		parameters.put("followers", user.getFollowersCount());
 		parameters.put("following", user.getFriendsCount());
 		parameters.put("verified", user.isVerified());
+		parameters.put("description", user.getDescription());
+		parameters.put("profileImage", user.getBiggerProfileImageURL());
 		
 		
-		session.run(query, parameters);
+		try{
+			session.run(query, parameters);
+		}
+		catch(TransientException e){
+			System.out.println("TransientException: couldn't run the query succesfully. Transaction canceled.");
+		}
 		
 	}
 
@@ -339,11 +413,11 @@ public static long[] extractTweets(GraphDBManager gdbm) {
         		return statusSet;
         	//	statusSet = (Set<Status>) twitter.lookup(ids);
 			} catch (TwitterException e) {
-				System.out.print("Lookup failed");
+				System.out.println("Lookup failed");
 				if(e.exceededRateLimitation())
-					System.out.println(" due to exceeded rate limitation.");
+					System.out.println("due to exceeded rate limitation.");
 				if(e.getErrorCode()==17)
-				System.out.println(": tweet(s) not found.");
+				System.out.println("tweet(s) not found.");
 				return null;
 			}
         }
@@ -356,11 +430,11 @@ public static long[] extractTweets(GraphDBManager gdbm) {
         		previousStatuses = twitter.lookup(idArrays.get(0));
         	}
         	catch (TwitterException e) {
-				System.out.print("Lookup failed");
+				System.out.println("Lookup failed");
 				if(e.exceededRateLimitation())
-					System.out.println(" due to exceeded rate limitation.");
+					System.out.println("due to exceeded rate limitation.");
 				if(e.getErrorCode()==17)
-				System.out.println(": tweet(s) not found.");
+				System.out.println("tweet(s) not found.");
 			}
         	
         	for(int i = 1;i<idArrays.size();i++){
@@ -369,17 +443,25 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 					Stream.of(previousStatuses, currentStatuses).forEach(totalStatuses::addAll);
 					previousStatuses = currentStatuses;
 				} catch (TwitterException e) {
-					System.out.print("Lookup failed");
+					System.out.println("Lookup failed");
 					if(e.exceededRateLimitation())
-						System.out.println(" due to exceeded rate limitation.");
+						System.out.println("due to exceeded rate limitation.");
 					if(e.getErrorCode()==17)
 					System.out.println(": tweet(s) not found.");
 				}
         	}
         	
         	Set<Status> statusSet = new HashSet<>();
-    		statusSet.addAll(totalStatuses);
-    		return statusSet;
+        	try{
+        		statusSet.addAll(totalStatuses);
+        		return statusSet;
+        	}
+        	catch(NullPointerException e){
+        		System.out.println("Failed to load any status.");
+        		return null;
+        	}
+        	
+    		
         	
     	}
 	}
@@ -394,11 +476,11 @@ public static long[] extractTweets(GraphDBManager gdbm) {
         		userSet.addAll(twitter.lookupUsers(ids));
 				return userSet;
 			} catch (TwitterException e) {
-				System.out.print("Lookup failed");
+				System.out.println("Lookup failed");
 				if(e.exceededRateLimitation())
-					System.out.println(" due to exceeded rate limitation.");
+					System.out.println("due to exceeded rate limitation.");
 				if(e.getErrorCode()==17)
-				System.out.println(": user(s) not found.");
+				System.out.println("user(s) not found.");
 				return null;
 			}
         	
@@ -412,11 +494,11 @@ public static long[] extractTweets(GraphDBManager gdbm) {
         		previousUsers = twitter.lookupUsers(idArrays.get(0));
         	}
         	catch (TwitterException e) {
-				System.out.print("Lookup failed");
+				System.out.println("Lookup failed");
 				if(e.exceededRateLimitation())
-					System.out.println(" due to exceeded rate limitation.");
+					System.out.println("due to exceeded rate limitation.");
 				if(e.getErrorCode()==17)
-				System.out.println(": user(s) not found.");
+				System.out.println("user(s) not found.");
 			}
         	
         	for(int i = 1;i<idArrays.size();i++){
@@ -425,17 +507,24 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 					Stream.of(previousUsers, currentUsers).forEach(totalUsers::addAll);
 					previousUsers = currentUsers;
 				} catch (TwitterException e) {
-					System.out.print("Lookup failed");
+					System.out.println("Lookup failed");
 					if(e.exceededRateLimitation())
 						System.out.println(" due to exceeded rate limitation.");
 					if(e.getErrorCode()==17)
-					System.out.println(": user(s) not found.");
+					System.out.println("user(s) not found.");
 				}
         	}
         	
         	Set<User> userSet = new HashSet<>();
-    		userSet.addAll(totalUsers);
-    		return userSet;
+    		
+    		try{
+    			userSet.addAll(totalUsers);
+        		return userSet;
+        	}
+        	catch(NullPointerException e){
+        		System.out.println("Failed to load any user.");
+        		return null;
+        	}
         	
     		
         }
@@ -451,17 +540,17 @@ public static void insertTweet(Session session, String topic, Status status) {
 		if(status.getPlace()!=null)
 			location = status.getPlace().getName();
 		else
-			location = "nd";
+			location = "N/A";
 		
 		String query = "";
 		
 		//Query
 				query += 	
 						"\nCREATE (t:Tweet{tweet_id:{tweet_id}})"
-						+ " SET t.text={text}, t.created_at={created_at}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
-				query += 
-						"\nMERGE (u:User{user_id:{user_id}})"
-						+ " SET u.screen_name={screen_name}, u.name={name}, u.location={user_location}, u.followers={followers}, u.following={following}, u.verified={verified}";
+						+ " SET t.text={text}, t.created_at={created_at}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}, t.language={language}";
+				query+="\nMERGE (u:User{user_id:{user_id}})"
+						+ " SET u.followers={followers}, u.following={following}, u.screen_name={screen_name}, u.location={user_location}, u.name={name}, u.verified={verified}, u.profileImage={profileImage}, u.description={description}";
+						
 				query += 
 						"\nMERGE (u)-[:POSTS]->(t)";
 				query += ""
@@ -475,21 +564,22 @@ public static void insertTweet(Session session, String topic, Status status) {
 		parameters.put("retweetcount", status.getRetweetCount());
 		parameters.put("likecount", status.getFavoriteCount());
 		parameters.put("location", location);
-		
+		parameters.put("language", status.getLang());
 		
 		//User properties
 		User user = status.getUser();
 		parameters.put("user_id", user.getId());
 		parameters.put("screen_name", user.getScreenName());
 		parameters.put("name", user.getName());
-		String user_location = "null";
+		String user_location = "N/A";
 		if(user.getLocation()!=null)
 			user_location=user.getLocation();
-	//	System.out.println(user.getLocation());
 		parameters.put("user_location", user_location);
 		parameters.put("followers", user.getFollowersCount());
 		parameters.put("following", user.getFriendsCount());
 		parameters.put("verified", user.isVerified());
+		parameters.put("description", user.getDescription());
+		parameters.put("profileImage", user.getBiggerProfileImageURL());
 		
 		//Hashtag property
 		int nHashtag = 0;
@@ -518,7 +608,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 			parameters.put("source", temp);
 		}
 		else
-			parameters.put("source", "nd");
+			parameters.put("source", "N/A");
 
 		
 		
@@ -530,7 +620,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 				}
 		
 		query += "\nMERGE (tv:Topic{name:{topic}})";
-		query += "\nCREATE (t)-[:ABOUT]->(tv)";
+		query += "\nMERGE (t)-[:ABOUT]->(tv)";
 		
 		parameters.put("topic", topic);
 				
@@ -538,7 +628,12 @@ public static void insertTweet(Session session, String topic, Status status) {
 
 		
 		//Run the query
-		session.run(query, parameters);
+		try{
+			session.run(query, parameters);
+		}
+		catch(TransientException e){
+			System.out.println("TransientException: couldn't run the query succesfully. Transaction canceled.");
+		}
 		
 	}
 	
@@ -546,23 +641,23 @@ public static void insertTweet(Session session, String topic, Status status) {
 		Status retweet = status.getRetweetedStatus();
 		String re_location;
 		String query = "";
-		query+="\nCREATE (t:Tweet{tweet_id:{tweet_id}})"
+		
+		query+="\nMERGE (t:Tweet{tweet_id:{tweet_id}})"
 				+ " SET t.text={text}, t.language={language}, t.created_at={created_at}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
 		query+="\nMERGE (rt:Tweet{tweet_id:{re_tweet_id}})"
-				+ " ON MATCH SET rt.retweetcount={re_retweetcount}, rt.likecount={re_likecount}"
-				+ " ON CREATE SET rt.text={re_text}, rt.language={re_language}, rt.created_at={re_created_at}, rt.retweetcount={re_retweetcount}, rt.likecount={re_likecount}, rt.location={re_location}";
-				
+				+ "\nSET rt.text={re_text}, rt.language={re_language}, rt.created_at={re_created_at}, rt.retweetcount={re_retweetcount}, rt.likecount={re_likecount}, rt.location={re_location}";
+		
+		
 		if(retweet.getPlace()!=null)
 			re_location = retweet.getPlace().getName();
 		else
-			re_location = "nd";
+			re_location = "N/A";
 		
 		//Retweet properties
 		Map<String, Object> parameters = new HashMap<String, Object>();
 		parameters.put("re_tweet_id", retweet.getId());
 		parameters.put("re_text", retweet.getText());
 		parameters.put("re_created_at", Utilities.convertDate(retweet.getCreatedAt()));
-		parameters.put("re_user", retweet.getUser().getScreenName());
 		parameters.put("re_retweetcount", retweet.getRetweetCount());
 		parameters.put("re_likecount", retweet.getFavoriteCount());
 		parameters.put("re_location", re_location);
@@ -572,7 +667,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 		if(status.getPlace()!=null)
 			location = retweet.getPlace().getName();
 		else
-			location = "nd";
+			location = "N/A";
 		
 		//Tweet properties
 		parameters.put("tweet_id", status.getId());
@@ -583,7 +678,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 		parameters.put("location", location);
 		parameters.put("language", status.getLang());
 		
-		String o_user_location = "null";
+		String o_user_location = "N/A";
 		
 		//Original User properties
 		User o_user = retweet.getUser();
@@ -596,8 +691,13 @@ public static void insertTweet(Session session, String topic, Status status) {
 		parameters.put("ofollowers", o_user.getFollowersCount());
 		parameters.put("ofollowing", o_user.getFriendsCount());
 		parameters.put("overified", o_user.isVerified());
+		parameters.put("oprofileImage", o_user.getBiggerProfileImageURL());
+		String desc = "N/A";
+		if(o_user.getDescription()!=null)
+			desc=o_user.getDescription();
+		parameters.put("odescription", desc);
 		
-		String user_location = "null";
+		String user_location = "N/A";
 		//User properties
 		User user = status.getUser();
 		parameters.put("user_id", user.getId());
@@ -609,6 +709,8 @@ public static void insertTweet(Session session, String topic, Status status) {
 		parameters.put("followers", user.getFollowersCount());
 		parameters.put("following", user.getFriendsCount());
 		parameters.put("verified", user.isVerified());
+		parameters.put("profileImage", user.getBiggerProfileImageURL());
+		parameters.put("description", user.getDescription());
 		
 		//Retweet: Hashtag property
 		int nHashtag = 0;
@@ -629,21 +731,27 @@ public static void insertTweet(Session session, String topic, Status status) {
 		}	
 		
 		
-		//Mentions
 		int nMentions = 0;
+		//Mentions
+		/*
+		 * Deprecated; a retweet always contains a mention to the original user
+		 * so storing the retweet's mentions is (very) likely to be trivial
+		 */
+		/*
+		
 		for(UserMentionEntity ume : status.getUserMentionEntities()){
 			nMentions++;
 			parameters.put("mentioned_id"+nMentions, ume.getId());
 			query+="\nMERGE (user_mentioned"+nMentions+":User{user_id:{mentioned_id"+nMentions+"}})"
-						+ " CREATE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
-		}
+						+ "\nMERGE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
+		}*/
 		
 		//Retweet Mentions
 		for(UserMentionEntity ume : retweet.getUserMentionEntities()){
 			nMentions++;
 			parameters.put("mentioned_id"+nMentions, ume.getId());
 			query+="\nMERGE (user_mentioned"+nMentions+":User{user_id:{mentioned_id"+nMentions+"}})"
-						+ " CREATE (t)-[:MENTIONS]->(user_mentioned"+nMentions+")";
+						+ "\nMERGE (rt)-[:MENTIONS]->(user_mentioned"+nMentions+")";
 		}
 		
 		//Source
@@ -654,7 +762,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 			parameters.put("source", temp);
 		}
 		else
-			parameters.put("source", "nd");
+			parameters.put("source", "N/A");
 		
 		//RetweetSource 
 		temp = retweet.getSource();
@@ -664,7 +772,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 			parameters.put("rtsource", temp);
 		}
 		else
-			parameters.put("rtsource", "nd");
+			parameters.put("rtsource", "N/A");
 		
 		
 		//Replies to
@@ -678,31 +786,36 @@ public static void insertTweet(Session session, String topic, Status status) {
 		if(retweet.getInReplyToStatusId()!=-1){
 			parameters.put("rtreplies", retweet.getInReplyToStatusId());
 			query+="\nMERGE (rtreplied:Tweet{tweet_id:{rtreplies}})"
-					+ "\n MERGE (t)-[:REPLIES_TO]->(rtreplied)";
+					+ "\n MERGE (rt)-[:REPLIES_TO]->(rtreplied)";
 		}	
 		
 				
 		
 		//Query
-				query+="\nMERGE (ou:User{user_id:{ouser_id}})"
-				+ " SET ou.followers={ofollowers}, ou.following={ofollowing}, ou.screen_name={oscreen_name}, ou.location={ouser_location}, ou.name={oname}, ou.verified={overified}";
-				query+="\nMERGE (u:User{user_id:{user_id}})"
-				+ " SET u.followers={followers}, u.following={following}, u.screen_name={screen_name}, u.location={user_location}, u.name={name}, u.verified={verified}";
-				query+="\nMERGE (ou)-[:POSTS]->(rt)";
-				query+="\nMERGE (u)-[:POSTS]->(t)";
-				query+="\nCREATE (t)-[:RETWEETS]->(rt)";
-				query+="\nMERGE (t)-[:SENT_FROM]->(source:Source{name:{source}})";
-				query+="\nMERGE (rt)-[:SENT_FROM]->(rtsource:Source{name:{rtsource}})";
-		
+		query+="\nMERGE (ou:User{user_id:{ouser_id}})"
+		+ " SET ou.followers={ofollowers}, ou.following={ofollowing}, ou.screen_name={oscreen_name}, ou.location={ouser_location}, ou.name={oname}, ou.verified={overified}, ou.profileImage={oprofileImage}, ou.description={odescription}";
+		query+="\nMERGE (u:User{user_id:{user_id}})"
+		+ " SET u.followers={followers}, u.following={following}, u.screen_name={screen_name}, u.location={user_location}, u.name={name}, u.verified={verified}, u.profileImage={profileImage}, u.description={description}";
+		query+="\nMERGE (ou)-[:POSTS]->(rt)";
+		query+="\nMERGE (u)-[:POSTS]->(t)";
+		query+="\nMERGE (t)-[:RETWEETS]->(rt)";
+		query+="\nMERGE (t)-[:SENT_FROM]->(source:Source{name:{source}})";
+		query+="\nMERGE (rt)-[:SENT_FROM]->(rtsource:Source{name:{rtsource}})";
+
 		
 		parameters.put("topic", topic);
 		
 		query += "\nMERGE (tv:Topic{name:{topic}})";
-		query += "\nCREATE (t)-[:ABOUT]->(tv)";
+		query += "\nMERGE (t)-[:ABOUT]->(tv)";
 		query += "\nMERGE (rt)-[:ABOUT]->(tv)";
 		
 		//Run the query
-		session.run(query, parameters);
+		try{
+			session.run(query, parameters);
+		}
+		catch(TransientException e){
+			System.out.println("TransientException: couldn't run the query succesfully. Transaction canceled.");
+		}
 		
 	}
 	
@@ -718,7 +831,11 @@ public static void insertTweet(Session session, String topic, Status status) {
 			if(devAccount2.equals("true"))
 				return readTwitterAuth("config/credenziali_twitter3.txt");
 			else{
-				JOptionPane.showMessageDialog(null, "Error: twitter dev account not chosen");
+				if(devAccount3.equals("true"))
+					return readTwitterAuth("config/credenziali_twitter4.txt");
+				else
+					JOptionPane.showMessageDialog(null, "Error: twitter dev account not chosen", "Error", JOptionPane.ERROR_MESSAGE);
+
 				System.exit(-1);
 			}
 		}
@@ -831,7 +948,13 @@ public static void insertTweet(Session session, String topic, Status status) {
 		TwitterManager.timeFilter = timeFilter;
 	}
 
+	public GraphDBManager getGdbm() {
+		return gdbm;
+	}
 
+	public static void setGdbm(GraphDBManager gdbm) {
+		TwitterManager.gdbm = gdbm;
+	}
 	}
 	
 

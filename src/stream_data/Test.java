@@ -1,0 +1,99 @@
+package stream_data;
+
+import org.neo4j.driver.v1.Record;
+import org.neo4j.driver.v1.StatementResult;
+import org.neo4j.driver.v1.types.Node;
+import org.neo4j.driver.v1.types.Relationship;
+
+public class Test {
+
+	/*
+	public static void main(String [] args){
+		GraphDBManager g = new GraphDBManager();
+		String query = "";
+		query = "match p=shortestPath((n:Tweet)-[*..2]-(m:Topic)) where  n.tweet_id=930424855933214726 return m.name";
+		StatementResult sr = g.getSession().run(query);
+		while(sr.hasNext()){
+			Record r = sr.next();
+			System.out.println(r.get("m.name").asString());
+		}
+	}
+	*/
+	
+	public static void main(String [] args){
+		GraphDBManager g = new GraphDBManager();
+		String query;
+		String topic = "trump";
+		System.out.println("Topic: "+topic);
+		query = "match (n:Topic)<--(b:Tweet)-[r:RETWEETS]->() where n.name='"+topic+"' return count(r)";
+		StatementResult sr = g.getSession().run(query);
+	
+		int contatore = 0;
+		while(sr.hasNext()){
+			Record r = sr.next();
+	//		Iterable<Relationship> rel = r.get("p").asPath().relationships();
+	//		for(Relationship r1 : rel){
+			//	System.out.print("("+r1.startNodeId()+")-["+r1.type()+"]->("+r1.endNodeId()+")");
+			//	contatore++;
+			//	System.out.print("\t");
+		//	}
+		//	System.out.println();
+			//System.out.println(r.get("p"));
+		//	contatore++;
+			contatore = r.get(0).asInt();
+				
+		//	System.out.println(Iterables.size(rel));
+		}
+		System.out.println("Coinvolti tramite retweet: \t\t"+contatore);
+		
+		query = "match (n:Topic)<--(a:Tweet)<-[r:REPLIES_TO]-(b:Tweet) where n.name='"+topic+"' return count(r)";
+		sr = g.getSession().run(query);
+	
+		contatore = 0;
+		while(sr.hasNext()){
+			Record r = sr.next();
+			contatore = r.get(0).asInt();
+		}
+		System.out.println("Coinvolti tramite risposta: \t\t"+contatore);
+		
+		
+		query = "match (n:Topic)<--(:Tweet)-[r:MENTIONS]->(:User) where n.name='"+topic+"' return count(r)";
+		sr = g.getSession().run(query);
+	
+		contatore = 0;
+		while(sr.hasNext()){
+			Record r = sr.next();
+			contatore = r.get(0).asInt();
+		}
+		System.out.println("Coinvolti tramite menzione: \t\t"+contatore);
+		
+		
+		query = "match (n:Topic)<--(t:Tweet) where n.name='"+topic+"' return count(t)";
+		sr = g.getSession().run(query);
+	
+		contatore = 0;
+		while(sr.hasNext()){
+			Record r = sr.next();
+			contatore = r.get(0).asInt();
+				
+		}
+		System.out.println("Coinvolti totali: \t\t\t"+contatore);
+		
+		query = "MATCH (t:Tweet)-[r:MENTIONS]->(u:User), (t)-->(tv:Topic{name:'"+topic+"'}) WHERE u.name<>'null' RETURN u, count(r) as mentions ORDER BY COUNT(r) DESC LIMIT 1";
+        sr = g.getSession().run(query);
+        while(sr.hasNext()){
+        	Record r = sr.next();
+        	Node n = r.get("u").asNode();
+        	System.out.println(n.get("description").asString());
+        	System.out.println(n.get("name").asString());
+        	int count = r.get("mentions").asInt();
+        	System.out.println("Mentions: "+count);
+        }
+        
+        
+        
+        
+	}
+	
+
+}

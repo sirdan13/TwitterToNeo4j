@@ -34,7 +34,7 @@ public class GraphDBManager {
 		sc.close();
 		driver = GraphDatabase.driver(host, AuthTokens.basic(user, pass));
 		setSession(driver.session());
-	//	System.out.println("Succesfully connected to graph database at "+host);
+		System.out.println("Succesfully connected to graph database at "+host);
 	}
 
 	public Session getSession() {
@@ -45,5 +45,12 @@ public class GraphDBManager {
 		GraphDBManager.session = session;
 	}
 	
-	
+
 }
+	
+	
+	
+	
+	
+	
+

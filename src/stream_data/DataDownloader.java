@@ -61,7 +61,7 @@ public class DataDownloader {
 					
 					if(System.currentTimeMillis()-lastUpdate>=10000){
 						long diff = System.currentTimeMillis()-lastUpdate;
-						int diffTweets = contatore-lastBunch;
+						double diffTweets = contatore-lastBunch;
 						double pace = diffTweets/(diff/1000);
 						System.out.println();
 						System.out.println("Ritmo: "+pace+" T/s");
@@ -83,7 +83,7 @@ public class DataDownloader {
 					
 					if(System.currentTimeMillis()-lastUpdate>=10000){
 						long diff = System.currentTimeMillis()-lastUpdate;
-						int diffTweets = contatore-lastBunch;
+						double diffTweets = contatore-lastBunch;
 						double pace = diffTweets/(diff/1000);
 						System.out.println();
 						System.out.println("Ritmo: "+pace+" T/s");

@@ -13,16 +13,17 @@ public class Lookup {
 		long startTime = System.currentTimeMillis();
 		TwitterManager tm = new TwitterManager();
 		int counter = 0;
-		gdbm = new GraphDBManager();
+		gdbm = tm.getGdbm();
 		while(true){
-			if((System.currentTimeMillis()-startTime)>15000 || counter==0){
+			if((System.currentTimeMillis()-startTime)>5000 || counter==0){
 				
 				startTime=System.currentTimeMillis();
 				lookupUsers(tm);
 				lookupTweets(tm);
 				counter++;
-				System.out.println("Task completed.");
-				System.out.println("Next update in 15 seconds");
+				System.out.println();
+				System.out.println("Next update in 5 seconds");
+				System.out.println();
 			}
 				
 				
@@ -32,11 +33,17 @@ public class Lookup {
 	
 	private static void lookupTweets(TwitterManager tm) {
 		long[] array = TwitterManager.extractTweets(gdbm);
-		if(array!=null){
+		if(array.length>0 && array!=null){
 			Set<Status> statusSet = TwitterManager.lookupTweets(array);
-			//Completing the info about the extracted tweets
-			for(Status s : statusSet)
-				TwitterManager.fillUpStatus(s);
+			if(statusSet!=null){
+				//Completing the info about the extracted tweets
+				for(Status s : statusSet){
+					if(s!=null)
+						TwitterManager.fillUpStatus(s);
+				}
+			}
+			
+				
 		}
 		
 	}
@@ -44,7 +51,7 @@ public class Lookup {
 	public static void lookupUsers(TwitterManager tm){
 		//Extracting users which have no other info but the user_id
 		long[] array = TwitterManager.extractUsers(gdbm);
-		if(array!=null){
+		if(array.length>0 && array!=null){
 			Set<User> userSet = TwitterManager.lookupUsers(array);
 			if(userSet!=null){
 				for(User u : userSet)
