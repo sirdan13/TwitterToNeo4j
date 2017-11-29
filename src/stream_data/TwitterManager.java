@@ -232,22 +232,32 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 	public static long[] extractUsers(GraphDBManager gdbm){
 		Session session = gdbm.getSession();
 		String query = "MATCH (u:User) WHERE NOT EXISTS(u.verified) RETURN u.user_id as user_id order by user_id asc";
-		StatementResult sr = session.run(query);
-		List<Long> ids = new ArrayList<Long>();
-		for(Record r : sr.list()){
-			if(r.get(0)!=null){
-				long id = r.get(0).asLong();
-				ids.add(id);
+		StatementResult sr = null;
+		//TODO
+		try{
+			sr = session.run(query);
+			List<Long> ids = new ArrayList<Long>();
+			for(Record r : sr.list()){
+				if(r.get(0)!=null){
+					long id = r.get(0).asLong();
+					ids.add(id);
+				}
+				
 			}
-			
+			if(ids.size()==0){
+				System.out.println("No users matched.");
+			}
+			else
+				System.out.println("Matched users: "+ids.size());
+			long[] result = ids.stream().mapToLong(l -> l).toArray();
+			return result;
 		}
-		if(ids.size()==0){
-			System.out.println("No users matched.");
+		catch(TransientException e){
+			System.out.println("TransientException: couldn't run the query succesfully. Transaction canceled.");
 		}
-		else
-			System.out.println("Matched users: "+ids.size());
-		long[] result = ids.stream().mapToLong(l -> l).toArray();
-		return result;
+		return new long[0];
+		
+		
 	}
 	
 	public static void fillUpUser(User user){
