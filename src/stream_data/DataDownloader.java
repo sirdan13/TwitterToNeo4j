@@ -1,9 +1,12 @@
 package stream_data;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.swing.UnsupportedLookAndFeelException;
 import org.neo4j.driver.v1.Session;
@@ -14,6 +17,7 @@ import twitter4j.StatusListener;
 import twitter4j.TwitterStream;
 import twitter4j.TwitterStreamFactory;
 import twitter4j.conf.Configuration;
+import utilities.Launcher;
 import utilities.Utilities;
 
 
@@ -29,6 +33,18 @@ public class DataDownloader {
 	public static void main(String[] args) throws ClassNotFoundException, InstantiationException, IllegalAccessException, UnsupportedLookAndFeelException, FileNotFoundException, InterruptedException, ParseException{
 		
 
+		try {
+            Runtime.getRuntime().exec("cmd /c start cmd.exe /K \" cd C:\\Users\\daniele\\Desktop\\Tesi\\Eseguibili && java -jar Lookup.jar");
+        } catch (IOException ex) {
+            Logger.getLogger(Launcher.class.getName()).log(Level.SEVERE, null, ex);
+        }
+		
+		try {
+            Runtime.getRuntime().exec("cmd /c start cmd.exe /K \" cd C:\\Users\\daniele\\Desktop\\Tesi\\Eseguibili && java -jar SentimentSetup.jar");
+        } catch (IOException ex) {
+            Logger.getLogger(Launcher.class.getName()).log(Level.SEVERE, null, ex);
+        }
+		
 			startDate = Utilities.getCurrentDate();
 			queue = new LinkedBlockingQueue<Status>(1000);
 			
