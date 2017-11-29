@@ -30,6 +30,11 @@ public class Tweet {
 		this.retweetcount=retweetcount;
 	}
 	
+	public Tweet(long nodeIDTweet, String text) {
+		this.nodeID=nodeIDTweet;
+		this.text=text;
+	}
+
 	public void computeSentiment(){
 		text = EmojiParser.parseToAliases(text);
 		words = text.toLowerCase().split("\\s+");
@@ -84,7 +89,7 @@ public class Tweet {
 			if(i-2>=0)
 				w02=words[i-2];
 			if(like.contains(w)){
-				if(w0.equals("not") || w0.equals("non") || w02.equals("not") || w02.equals("non"))
+				if(w0.equals("not") || w0.equals("non") || w02.equals("not") || w02.equals("non") || w0.equals("can't") || w02.equals("can't") || w0.equals("cannot") || w02.equals("cannot") )
 					negativeCounter++;
 				else
 					positiveCounter++;

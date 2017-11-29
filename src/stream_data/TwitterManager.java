@@ -311,7 +311,8 @@ public static long[] extractTweets(GraphDBManager gdbm) {
 			location=status.getPlace().getName()+", "+status.getPlace().getCountry();
 		else
 			location="N/A";
-		query += "\nCREATE (t)-[:SENT_FROM]->(s:Source{name:{source}})";
+		query += "\nMERGE (s:Source{application:{source}}) ";
+		query += "\nCREATE (t)-[:SENT_FROM]->(s)";
 		query += "\nMERGE (u:User{user_id:{user_id}})"
 				+ "\nSET u.name={name}, u.screen_name={screen_name}, u.location={u_location}, u.followers={followers}, u.following={following}, u.verified={verified}, u.description={description}, u.profileImage={profileImage}";
 		query += "\nMERGE (u)-[:POSTS]->(t)";
@@ -553,8 +554,9 @@ public static void insertTweet(Session session, String topic, Status status) {
 						
 				query += 
 						"\nMERGE (u)-[:POSTS]->(t)";
+				query += "\nMERGE (s:Source{application:{source}}) ";
 				query += ""
-						+ "\nMERGE (t)-[:SENT_FROM]->(source:Source{name:{source}})";
+						+ "\nMERGE (t)-[:SENT_FROM]->(s)";
 		
 		//Tweet properties
 		Map<String, Object> parameters = new HashMap<String, Object>();
@@ -799,8 +801,10 @@ public static void insertTweet(Session session, String topic, Status status) {
 		query+="\nMERGE (ou)-[:POSTS]->(rt)";
 		query+="\nMERGE (u)-[:POSTS]->(t)";
 		query+="\nMERGE (t)-[:RETWEETS]->(rt)";
-		query+="\nMERGE (t)-[:SENT_FROM]->(source:Source{name:{source}})";
-		query+="\nMERGE (rt)-[:SENT_FROM]->(rtsource:Source{name:{rtsource}})";
+		query += "\nMERGE (s:Source{application:{source}}) ";
+		query+="\nMERGE (t)-[:SENT_FROM]->(s)";
+		query += "\nMERGE (rs:Source{application:{rtsource}}) ";
+		query+="\nMERGE (rt)-[:SENT_FROM]->(rs)";
 
 		
 		parameters.put("topic", topic);

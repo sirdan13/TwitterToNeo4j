@@ -577,7 +577,7 @@ public class Setup extends javax.swing.JFrame {
     }                                             
 
     private void jRadioButton3ActionPerformed(java.awt.event.ActionEvent evt) {                                              
-        // TODO add your handling code here:
+        
     }                                             
 
     public static void setLF(String lf) throws ClassNotFoundException, InstantiationException, IllegalAccessException, UnsupportedLookAndFeelException{

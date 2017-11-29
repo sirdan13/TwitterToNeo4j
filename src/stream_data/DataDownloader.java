@@ -51,6 +51,8 @@ public class DataDownloader {
 			contatore=0;
 			long lastUpdate = System.currentTimeMillis();
 			int lastBunch = 0;
+			session.run("CREATE CONSTRAINT ON (source:Source) ASSERT source.application IS UNIQUE");
+			
 			if(checkTime){
 				while(true){
 					Status status = queue.poll();
