@@ -47,10 +47,14 @@ bestie
 bitch
 blockhead
 block-head
+boicottare
+boicotto
+boicotta
 boriosa
 boriose
 boriosi
 borioso
+boycott
 brutta
 brutte
 brutti
@@ -325,6 +329,8 @@ vergognosa
 vergognose
 vergognosi
 vergognoso
+waste
+wasted
 zoccola
 zoccolona
 zozza

@@ -48,5 +48,7 @@
 			<attribute name="javadoc_location" value="jar:file:/C:/Users/daniele/workspace/Libs/emoji-java-4.0.0-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/jfreechart-1.0.19.jar"/>
+	<classpathentry kind="lib" path="C:/Users/daniele/workspace/Libs/jcommon-1.0.23.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

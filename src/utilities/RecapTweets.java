@@ -97,6 +97,8 @@ public class RecapTweets extends javax.swing.JFrame {
         jLabel20 = new javax.swing.JLabel();
         jTextField7 = new javax.swing.JTextField();
         jLabel21 = new javax.swing.JLabel();
+        jTextField8 = new javax.swing.JTextField();
+        jLabel22 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Twitter Analytics");
@@ -262,8 +264,19 @@ public class RecapTweets extends javax.swing.JFrame {
         jTextField7.setFont(new java.awt.Font("Tahoma", 0, 24)); // NOI18N
         jTextField7.setToolTipText("Numero di tweet al secondo registrati negli ultimi 20 secondi");
 
-        jLabel21.setFont(new java.awt.Font("Calibri", 0, 18)); // NOI18N
         jLabel21.setText("Ritmo di acquisizione attuale");
+        jLabel21.setFont(new java.awt.Font("Calibri", 0, 18)); // NOI18N
+
+        jTextField8.setEditable(false);
+        jTextField8.setFont(new java.awt.Font("Tahoma", 0, 24)); // NOI18N
+        jTextField8.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jTextField8ActionPerformed(evt);
+            }
+        });
+
+        jLabel22.setText("TOTALI");
+        jLabel22.setFont(new java.awt.Font("Calibri", 0, 18)); // NOI18N
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -313,6 +326,7 @@ public class RecapTweets extends javax.swing.JFrame {
                             .addComponent(jLabel9, javax.swing.GroupLayout.PREFERRED_SIZE, 168, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(layout.createSequentialGroup()
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                                    .addComponent(jTextField8, javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(jTextField5, javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(jTextField3, javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(jTextField2, javax.swing.GroupLayout.Alignment.LEADING)
@@ -324,7 +338,8 @@ public class RecapTweets extends javax.swing.JFrame {
                                     .addComponent(jLabel3)
                                     .addComponent(jLabel5)
                                     .addComponent(jLabel19)
-                                    .addComponent(jLabel20))))))
+                                    .addComponent(jLabel20)
+                                    .addComponent(jLabel22))))))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 158, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -351,6 +366,28 @@ public class RecapTweets extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel4)
+                            .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(12, 12, 12)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(1, 1, 1))
+                            .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jTextField5, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel19, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jTextField6, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel20, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jLabel8)
                             .addComponent(jLabel16)
@@ -383,43 +420,21 @@ public class RecapTweets extends javax.swing.JFrame {
                                     .addComponent(jLabel7))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 59, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                        .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addGroup(layout.createSequentialGroup()
-                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                            .addComponent(jLabel4)
-                                            .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                        .addGap(12, 12, 12))
-                                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                            .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 59, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                            .addComponent(jTextField8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                        .addGap(24, 24, 24)
                                         .addComponent(jLabel21)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)))
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                            .addGroup(layout.createSequentialGroup()
-                                                .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                                .addGap(1, 1, 1))
-                                            .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                            .addComponent(jTextField5, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                            .addComponent(jLabel19, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE))
                                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                            .addComponent(jTextField6, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                            .addComponent(jLabel20, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                    .addGroup(layout.createSequentialGroup()
                                         .addComponent(jTextField7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                         .addGap(38, 38, 38)
                                         .addComponent(jToggleButton1)
                                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                         .addComponent(dateTimePicker1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(dateTimePicker2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                        .addComponent(dateTimePicker2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addComponent(jLabel22, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)))
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(jLabel6)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -515,8 +530,8 @@ public class RecapTweets extends javax.swing.JFrame {
 	    		endTime = convertTimePickerFormat(dateTimePicker2.getTimePicker().getText());
 	    		endDateTime = endDate+" "+endTime;
 	    		
-	    		query += "and t.created_at>'"+startDateTime+"' ";
-	    		query += "and t.created_at<'"+endDateTime+"' ";
+	    		query += " and t.created_at>'"+startDateTime+"' ";
+	    		query += " and t.created_at<'"+endDateTime+"' ";
     		}
     		
     	
@@ -533,10 +548,22 @@ public class RecapTweets extends javax.swing.JFrame {
    	}
         jTextField1.setText(Integer.toString(r.get(0).asInt()));
         
+        query = "MATCH  (t:Tweet)-->(topic:Topic), (t)--(u:User) WHERE topic.name='"+topic+"' ";
+        if(startDateTime.length()>0){
+        	query += " and t.created_at>'"+startDateTime+"' ";
+    		query += " and t.created_at<'"+endDateTime+"' ";
+        }
+        query += " return count(distinct u) as users";
+        sr = session.run(query);
+        if(sr.hasNext())
+    		r = sr.next();
+        jTextField8.setText(Integer.toString(r.get("users").asInt()));
+        
+        
         query = "match (n:Topic)<--(t:Tweet)-[r:RETWEETS]->(:Tweet)<--(u:User) where n.name='"+topic+"' ";
         if(startDateTime.length()>0){
-        	query += "and t.created_at>'"+startDateTime+"' ";
-    		query += "and t.created_at<'"+endDateTime+"' ";
+        	query += " and t.created_at>'"+startDateTime+"' ";
+    		query += " and t.created_at<'"+endDateTime+"' ";
         }
         query += " return count(distinct u)";
         sr = session.run(query);
@@ -546,8 +573,8 @@ public class RecapTweets extends javax.swing.JFrame {
         
         query = "match (n:Topic)<--(a:Tweet)<-[r:REPLIES_TO]-(t:Tweet)<--(u:User) where n.name='"+topic+"' ";
         if(startDateTime.length()>0){
-        	query += "and t.created_at>'"+startDateTime+"' ";
-    		query += "and t.created_at<'"+endDateTime+"' ";
+        	query += " and t.created_at>'"+startDateTime+"' ";
+    		query += " and t.created_at<'"+endDateTime+"' ";
         }
         query += " return count(distinct u)";
 		sr = session.run(query);
@@ -557,8 +584,8 @@ public class RecapTweets extends javax.swing.JFrame {
         
         query = "match (n:Topic)<--(t:Tweet)-[r:MENTIONS]->(u:User) where n.name='"+topic+"' ";
         if(startDateTime.length()>0){
-        	query += "and t.created_at>'"+startDateTime+"' ";
-    		query += "and t.created_at<'"+endDateTime+"' ";
+        	query += " and t.created_at>'"+startDateTime+"' ";
+    		query += " and t.created_at<'"+endDateTime+"' ";
         }
         query += " return count(distinct u)";
 		sr = session.run(query);
@@ -569,8 +596,8 @@ public class RecapTweets extends javax.swing.JFrame {
         query = "match (t:Tweet)-->(topic:Topic) where topic.name='"+topic+"' and size( (t)-[:RETWEETS|:REPLIES_TO]->() ) > 0  ";
 		
     	if(startDateTime.length()>0){
-        	query += "and t.created_at>'"+startDateTime+"' ";
-    		query += "and t.created_at<'"+endDateTime+"' ";
+        	query += " and t.created_at>'"+startDateTime+"' ";
+    		query += " and t.created_at<'"+endDateTime+"' ";
         }
         query += " return count(t)";
 		sr = session.run(query);
@@ -582,8 +609,8 @@ public class RecapTweets extends javax.swing.JFrame {
     	query = "match (t:Tweet)-->(topic:Topic) where topic.name='"+topic+"' ";
     	
     	if(startDateTime.length()>0){
-        	query += "and t.created_at>'"+startDateTime+"' ";
-    		query += "and t.created_at<'"+endDateTime+"' ";
+        	query += " and t.created_at>'"+startDateTime+"' ";
+    		query += " and t.created_at<'"+endDateTime+"' ";
         }
         query += " return count(t)";
 		sr = session.run(query);
@@ -595,8 +622,8 @@ public class RecapTweets extends javax.swing.JFrame {
 		query = "match (u:User)-->(t:Tweet)-->(topic:Topic) where topic.name='"+topic+"' and size((t)-->(:Tweet))=0";
     	
     	if(startDateTime.length()>0){
-        	query += "and t.created_at>'"+startDateTime+"' ";
-    		query += "and t.created_at<'"+endDateTime+"' ";
+        	query += " and t.created_at>'"+startDateTime+"' ";
+    		query += " and t.created_at<'"+endDateTime+"' ";
         }
         query += " return count(distinct u) as users";
 		sr = session.run(query);
@@ -622,8 +649,8 @@ public class RecapTweets extends javax.swing.JFrame {
        
         query = "MATCH (t:Tweet)-[r:MENTIONS]->(u:User), (t)-->(tv:Topic{name:'"+topic+"'}) WHERE u.name<>'null' ";
         if(startDateTime.length()>0){
-        	query += "and t.created_at>'"+startDateTime+"' ";
-    		query += "and t.created_at<'"+endDateTime+"' ";
+        	query += " and t.created_at>'"+startDateTime+"' ";
+    		query += " and t.created_at<'"+endDateTime+"' ";
         }
         query += " RETURN u, count(r) as mentions ORDER BY COUNT(r) DESC LIMIT 1";
         sr = session.run(query);
@@ -746,6 +773,10 @@ public class RecapTweets extends javax.swing.JFrame {
         // TODO add your handling code here:
     }                                           
 
+    private void jTextField8ActionPerformed(java.awt.event.ActionEvent evt) {                                            
+        // TODO add your handling code here:
+    }                                           
+
     /**
      * @param args the command line arguments
      */
@@ -797,6 +828,7 @@ public class RecapTweets extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel20;
     private javax.swing.JLabel jLabel21;
+    private javax.swing.JLabel jLabel22;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
@@ -813,6 +845,7 @@ public class RecapTweets extends javax.swing.JFrame {
     private javax.swing.JTextField jTextField5;
     private javax.swing.JTextField jTextField6;
     private javax.swing.JTextField jTextField7;
+    private javax.swing.JTextField jTextField8;
     private javax.swing.JToggleButton jToggleButton1;
     private javax.swing.JToggleButton jToggleButton2;
     // End of variables declaration                   
