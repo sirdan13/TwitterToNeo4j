@@ -3,17 +3,22 @@ package utilities;
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import javax.swing.Timer;
 import java.util.concurrent.TimeUnit;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
-import javax.swing.JOptionPane;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.UnsupportedLookAndFeelException;
 
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
@@ -25,54 +30,86 @@ import org.jfree.data.time.TimeSeriesCollection;
 import org.neo4j.driver.v1.Session;
 import org.neo4j.driver.v1.StatementResult;
 
-import com.github.lgooddatepicker.optionalusertools.DateTimeChangeListener;
-import com.github.lgooddatepicker.zinternaltools.DateTimeChangeEvent;
-
 import stream_data.GraphDBManager;
 
 public class GraphExtension {
 	
+	@SuppressWarnings("deprecation")
 	final TimeSeries series = new TimeSeries("Involved users", Minute.class);
 	final TimeSeriesCollection data = new TimeSeriesCollection(series);
 	final JFreeChart graphics = ChartFactory.createTimeSeriesChart("Involved users", "Time", "Users", data, true, true, true);
 	final JPanel panel = new ChartPanel(graphics);
 	static JPanel bottomPanel = new JPanel();
-	final JButton insertData = new JButton("Insert data");
+	static JPanel topPanel = new JPanel();
+	final JButton insertData = new JButton("Get data");
 	final JButton clearButton = new JButton("Clear chart");
-	final JButton takeDate = new JButton("Take date");
+	final JButton saveParameters = new JButton("Save parameters");
+	JLabel dateLabel = new JLabel("Insert start date:");
+	JLabel topicLabel = new JLabel("Insert topic:");
+	JLabel endDateLabel = new JLabel("Insert end date:");
+	static JTextField insertTopic = new JTextField("Insert topic");
 	static List<Integer> arrayTime;
 	static String [] times;
 	GraphDBManager g = new GraphDBManager();
 	Session session = g.getSession();
 	static String initialTime;
+	static String finalTime;
 	static String startDate;
 	static String endDate; 
+	static String topic = "";
 	int buttonPressed=0;
+	static int contatore = 0;
 	private com.github.lgooddatepicker.components.DateTimePicker dateTimePicker1;
+	private com.github.lgooddatepicker.components.DateTimePicker dateTimePicker2;
+	long minutesDiff = 0;
 	
 	public GraphExtension(){
 		JFrame frame = new JFrame();
 		dateTimePicker1 = new com.github.lgooddatepicker.components.DateTimePicker();
+		dateTimePicker2 = new com.github.lgooddatepicker.components.DateTimePicker();
 		clearButton.addActionListener(new ActionListener(){
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				series.clear();
-				startDate = initialTime;
+				contatore=0;
 				buttonPressed=0;
 				
 			}
 			
 		});
 		
-		takeDate.addActionListener(new ActionListener(){
+
+		insertTopic.addFocusListener(new FocusListener() {
+		    public void focusGained(FocusEvent e) {
+		    	insertTopic.setText("");
+		    }
+
+		    public void focusLost(FocusEvent e) {
+		    	
+		    }
+		    
+		});
+		
+		
+		saveParameters.addActionListener(new ActionListener(){
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				String datePicker = convertDatePickerFormat(dateTimePicker1.getDatePicker().getText());
 				String timePicker = convertTimePickerFormat(dateTimePicker1.getTimePicker().getText());
 				initialTime = datePicker+" "+timePicker;
-				
+				String datePicker2 = convertDatePickerFormat(dateTimePicker2.getDatePicker().getText());
+				String timePicker2 = convertTimePickerFormat(dateTimePicker2.getTimePicker().getText());
+				finalTime = datePicker2+" "+timePicker2;
+				topic = insertTopic.getText();
+				try {
+					Date d1 = stringToDate(initialTime);
+					Date d2 = stringToDate(finalTime);
+					minutesDiff = getDateDiff(d1, d2, TimeUnit.MINUTES);
+				} catch (ParseException e1) {
+					e1.printStackTrace();
+				}
 			}
 			
 		});
@@ -81,48 +118,48 @@ public class GraphExtension {
 
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				buttonPressed++;
-				String topic = "trump";
-				Date a,b;
 
+				while(contatore<minutesDiff){
+					contatore++;
+					buttonPressed++;
+					Date a,b;
+
+					try {
+						
+						if(buttonPressed>1){
+							a = stringToDate(startDate);
+							b = stringToDate(endDate);
+							startDate = dateToString(addSecs(a, 60));
+							endDate = dateToString(addSecs(b, 60));
+						}
+						else{
+							startDate=initialTime;
+							a=stringToDate(startDate);
+							endDate=dateToString(addSecs(a, 60));
+							b = stringToDate(endDate);
+						}
+							
+						
+						String query = "MATCH  (t:Tweet)-->(topic:Topic), (t)--(u:User) WHERE topic.name='"+topic+"' ";
+						query += "and t.created_at>'"+startDate+"' ";
+						query += "and t.created_at<='"+endDate+"' ";
+						query += " return count(distinct u) as users";
+						StatementResult sr = session.run(query);
+						int involvedUsers = sr.next().get("users").asInt();
+						String date = startDate;
+						final Hour ora = new Hour(Integer.parseInt(date.substring(11, 13)), Integer.parseInt(date.substring(8, 10)), Integer.parseInt(date.substring(5, 7)), Integer.parseInt(date.substring(0, 4)));
+						final int min = Integer.parseInt(date.substring(14, 16));
+						series.add(new Minute(min, ora), (double) involvedUsers);
+						
+						
+					} catch (ParseException e2) {
+						
+						e2.printStackTrace();
+					}
 				
-				try {
-					
-					if(buttonPressed>1){
-						a = stringToDate(startDate);
-						b = stringToDate(endDate);
-						startDate = dateToString(addSecs(a, 60));
-						endDate = dateToString(addSecs(b, 60));
-					}
-					else{
-						startDate=initialTime;
-						a=stringToDate(startDate);
-						endDate=dateToString(addSecs(a, 60));
-						b = stringToDate(endDate);
-						
-					}
-						
-			//		a = stringToDate(startDate);
-					
-					String query = "MATCH  (t:Tweet)-->(topic:Topic), (t)--(u:User) WHERE topic.name='"+topic+"' ";
-					query += "and t.created_at>'"+startDate+"' ";
-					query += "and t.created_at<='"+endDate+"' ";
-					query += " return count(distinct u) as users";
-					StatementResult sr = session.run(query);
-					int involvedUsers = sr.next().get("users").asInt();
-					String date = startDate;
-					final Hour ora = new Hour(Integer.parseInt(date.substring(11, 13)), Integer.parseInt(date.substring(8, 10)), Integer.parseInt(date.substring(5, 7)), Integer.parseInt(date.substring(0, 4)));
-					final int min = Integer.parseInt(date.substring(14, 16));
-					series.add(new Minute(min, ora), (double) involvedUsers);
-					
-					
-				} catch (ParseException e) {
-					
-					e.printStackTrace();
 				}
-				
 			}
-			
+					
 		});
 			
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -130,24 +167,41 @@ public class GraphExtension {
 		frame.add(panel, BorderLayout.CENTER);
 		frame.setSize(1000, 500);
 		frame.setLocation(550, 300);
-		bottomPanel.add(dateTimePicker1);
-		bottomPanel.add(takeDate);
+		topPanel.add(topicLabel);
+		topPanel.add(insertTopic);
+		topPanel.add(dateLabel);
+		topPanel.add(dateTimePicker1);
+		topPanel.add(endDateLabel);
+		topPanel.add(dateTimePicker2);
+		topPanel.add(saveParameters);
+		frame.add(topPanel, BorderLayout.NORTH);
 		bottomPanel.add(insertData, BorderLayout.EAST);
 		bottomPanel.add(clearButton, BorderLayout.WEST);
 		frame.add(bottomPanel, BorderLayout.SOUTH);
 		frame.setVisible(true);
-		
+	}
+	
+	public void insertDataActionPerformed(ActionEvent arg0) {
+	
 		
 	}
+	
 
 	public static void main(String[] args) throws ParseException {
 
-		
-	//	startDate = JOptionPane.showInputDialog(null, "Inserire data e orario di inizio: ");
-	//	initialTime = startDate;
-	/*	Date a = stringToDate(startDate);
-		endDate = dateToString(addSecs(a, 60));*/
+		for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+            if ("Nimbus".equals(info.getName())) {
+                try {
+					javax.swing.UIManager.setLookAndFeel(info.getClassName());
+				} catch (ClassNotFoundException | InstantiationException | IllegalAccessException
+						| UnsupportedLookAndFeelException e) {
+					e.printStackTrace();
+				}
+                break;
+            }
+        }
 		new GraphExtension();
+		
 
 	}
 	
@@ -241,7 +295,7 @@ public class GraphExtension {
 	  */
 	 public static long getDateDiff(Date date1, Date date2, TimeUnit timeUnit) {
 	     long diffInMillies = date2.getTime() - date1.getTime();
-	     return (timeUnit.convert(diffInMillies,timeUnit))/1000;
+	     return (timeUnit.convert(diffInMillies,timeUnit))/60000;
 	 }
 
 }

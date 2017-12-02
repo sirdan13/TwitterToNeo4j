@@ -713,7 +713,7 @@ public class RecapTweets extends javax.swing.JFrame {
     }                                              
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {                                         
-            	countButton2++;
+        countButton2++;
         GraphDBManager gdbm = new GraphDBManager();
     	session = gdbm.getSession();
     	String query = "match (n:Topic) return n.name";
@@ -784,8 +784,7 @@ public class RecapTweets extends javax.swing.JFrame {
       
     	totalTweets = 0;
     	
-    	
-        try {
+    	try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
                 if ("Nimbus".equals(info.getName())) {
                     javax.swing.UIManager.setLookAndFeel(info.getClassName());
@@ -801,7 +800,6 @@ public class RecapTweets extends javax.swing.JFrame {
             private RecapTweets frame;
 
 			public void run() {
-                
                 frame = new RecapTweets();
                 frame.setVisible(true);
                 frame.setLocation(400, 100);
