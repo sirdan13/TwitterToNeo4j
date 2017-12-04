@@ -46,7 +46,7 @@ public class DataDownloader {
         }
 		
 			startDate = Utilities.getCurrentDate();
-			queue = new LinkedBlockingQueue<Status>(1000);
+			queue = new LinkedBlockingQueue<Status>(100000);
 			
 			GraphDBManager gdbm = new GraphDBManager();
 			session = gdbm.getSession();

@@ -1,4 +1,4 @@
-package utilities;
+package analytics;
 
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
@@ -10,14 +10,16 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import javax.swing.Timer;
 import java.util.concurrent.TimeUnit;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.JToggleButton;
+import javax.swing.Timer;
 import javax.swing.UnsupportedLookAndFeelException;
 
 import org.jfree.chart.ChartFactory;
@@ -32,7 +34,7 @@ import org.neo4j.driver.v1.StatementResult;
 
 import stream_data.GraphDBManager;
 
-public class GraphExtension {
+public class InvolvedUsers {
 	
 	@SuppressWarnings("deprecation")
 	final TimeSeries series = new TimeSeries("Involved users", Minute.class);
@@ -44,6 +46,7 @@ public class GraphExtension {
 	final JButton insertData = new JButton("Get data");
 	final JButton clearButton = new JButton("Clear chart");
 	final JButton saveParameters = new JButton("Save parameters");
+	final JToggleButton liveAnalysis = new JToggleButton();
 	JLabel dateLabel = new JLabel("Insert start date:");
 	JLabel topicLabel = new JLabel("Insert topic:");
 	JLabel endDateLabel = new JLabel("Insert end date:");
@@ -63,10 +66,32 @@ public class GraphExtension {
 	private com.github.lgooddatepicker.components.DateTimePicker dateTimePicker2;
 	long minutesDiff = 0;
 	
-	public GraphExtension(){
+	public InvolvedUsers(){
 		JFrame frame = new JFrame();
 		dateTimePicker1 = new com.github.lgooddatepicker.components.DateTimePicker();
 		dateTimePicker2 = new com.github.lgooddatepicker.components.DateTimePicker();
+		liveAnalysis.setText("Live analysis");
+		liveAnalysis.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+		liveAnalysis.addActionListener(new java.awt.event.ActionListener() {
+			
+	            public void actionPerformed(java.awt.event.ActionEvent evt) {
+	            	if(!liveAnalysis.isEnabled()){
+						return;
+	            	}
+	            	else{
+	            		series.clear();
+						contatore=0;
+						buttonPressed=0;
+	            		jToggleButton1ActionPerformed(evt);
+	            	}
+	            		
+	            }
+
+				
+	        });
+		saveParameters.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+		insertData.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+		clearButton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
 		clearButton.addActionListener(new ActionListener(){
 
 			@Override
@@ -118,47 +143,10 @@ public class GraphExtension {
 
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-
-				while(contatore<minutesDiff){
-					contatore++;
-					buttonPressed++;
-					Date a,b;
-
-					try {
-						
-						if(buttonPressed>1){
-							a = stringToDate(startDate);
-							b = stringToDate(endDate);
-							startDate = dateToString(addSecs(a, 60));
-							endDate = dateToString(addSecs(b, 60));
-						}
-						else{
-							startDate=initialTime;
-							a=stringToDate(startDate);
-							endDate=dateToString(addSecs(a, 60));
-							b = stringToDate(endDate);
-						}
-							
-						
-						String query = "MATCH  (t:Tweet)-->(topic:Topic), (t)--(u:User) WHERE topic.name='"+topic+"' ";
-						query += "and t.created_at>'"+startDate+"' ";
-						query += "and t.created_at<='"+endDate+"' ";
-						query += " return count(distinct u) as users";
-						StatementResult sr = session.run(query);
-						int involvedUsers = sr.next().get("users").asInt();
-						String date = startDate;
-						final Hour ora = new Hour(Integer.parseInt(date.substring(11, 13)), Integer.parseInt(date.substring(8, 10)), Integer.parseInt(date.substring(5, 7)), Integer.parseInt(date.substring(0, 4)));
-						final int min = Integer.parseInt(date.substring(14, 16));
-						series.add(new Minute(min, ora), (double) involvedUsers);
-						
-						
-					} catch (ParseException e2) {
-						
-						e2.printStackTrace();
-					}
-				
-				}
+				getDataActionPerformed();
 			}
+
+			
 					
 		});
 			
@@ -175,18 +163,100 @@ public class GraphExtension {
 		topPanel.add(dateTimePicker2);
 		topPanel.add(saveParameters);
 		frame.add(topPanel, BorderLayout.NORTH);
+		bottomPanel.add(liveAnalysis);
 		bottomPanel.add(insertData, BorderLayout.EAST);
 		bottomPanel.add(clearButton, BorderLayout.WEST);
 		frame.add(bottomPanel, BorderLayout.SOUTH);
 		frame.setVisible(true);
 	}
 	
-	public void insertDataActionPerformed(ActionEvent arg0) {
+	private void getData(){
+		contatore++;
+		buttonPressed++;
+		Date a,b;
+
+		try {
+			
+			if(buttonPressed>1){
+				a = stringToDate(startDate);
+				b = stringToDate(endDate);
+				startDate = dateToString(addSecs(a, 60));
+				endDate = dateToString(addSecs(b, 60));
+			}
+			else{
+				startDate=initialTime;
+				a=stringToDate(startDate);
+				endDate=dateToString(addSecs(a, 60));
+				b = stringToDate(endDate);
+			}
+				
+			
+			String query = "MATCH  (t:Tweet)-->(topic:Topic), (t)--(u:User) WHERE topic.name='"+topic+"' ";
+			query += "and t.created_at>'"+startDate+"' ";
+			query += "and t.created_at<='"+endDate+"' ";
+			query += " return count(distinct u) as users";
+			StatementResult sr = session.run(query);
+			int involvedUsers = sr.next().get("users").asInt();
+			String date = startDate;
+			final Hour ora = new Hour(Integer.parseInt(date.substring(11, 13)), Integer.parseInt(date.substring(8, 10)), Integer.parseInt(date.substring(5, 7)), Integer.parseInt(date.substring(0, 4)));
+			final int min = Integer.parseInt(date.substring(14, 16));
+			series.add(new Minute(min, ora), (double) involvedUsers);
+			
+			
+		} catch (ParseException e2) {
+			
+			e2.printStackTrace();
+		}
 	
-		
+	}
+
+	
+	
+	private void getDataActionPerformed() {
+		while(contatore<minutesDiff)
+			getData();
 	}
 	
+	private void jToggleButton1ActionPerformed(ActionEvent evt) {
+		topic = JOptionPane.showInputDialog("Inserire topic di interesse: ");
+		Timer timer = new Timer(1000, new ActionListener(){
 
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				timerActionPerformed();
+			}
+
+			});
+		
+		timer.start();
+		
+	}
+
+	private void timerActionPerformed() {
+				
+		contatore++;
+		buttonPressed++;
+		Date a,b;
+
+		b = new Date();
+		a = addSecs(b, -60);
+		
+		startDate = dateToString(a);
+		endDate = dateToString(b);
+				
+		String query = "MATCH  (t:Tweet)-->(topic:Topic), (t)--(u:User) WHERE topic.name='"+topic+"' ";
+		query += "and t.created_at>'"+startDate+"' ";
+		query += "and t.created_at<='"+endDate+"' ";
+		query += " return count(distinct u) as users";
+		StatementResult sr = session.run(query);
+		int involvedUsers = sr.next().get("users").asInt();
+		String date = startDate;
+		Hour ora = new Hour(Integer.parseInt(date.substring(11, 13)), Integer.parseInt(date.substring(8, 10)), Integer.parseInt(date.substring(5, 7)), Integer.parseInt(date.substring(0, 4)));
+		int initialMinute = Integer.parseInt(date.substring(14, 16));
+		series.addOrUpdate(new Minute(initialMinute, ora), (double) involvedUsers);
+	}
+	
+	
 	public static void main(String[] args) throws ParseException {
 
 		for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
@@ -200,7 +270,7 @@ public class GraphExtension {
                 break;
             }
         }
-		new GraphExtension();
+		new InvolvedUsers();
 		
 
 	}
