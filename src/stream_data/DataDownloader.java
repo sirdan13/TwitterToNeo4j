@@ -29,7 +29,6 @@ public class DataDownloader {
 	static LinkedBlockingQueue<Status> queue;
 	static Date startDate;
 	static boolean checkTime;
-
 	static long lastUpdate;
 	static int lastBunch = 0;
 	
@@ -38,11 +37,6 @@ public class DataDownloader {
 
 		try {
             Runtime.getRuntime().exec("cmd /c start cmd.exe /K \" cd C:\\Users\\daniele\\Desktop\\Tesi\\Eseguibili && java -jar Lookup.jar");
-        } catch (IOException ex) {
-            Logger.getLogger(Launcher.class.getName()).log(Level.SEVERE, null, ex);
-        }
-		
-		try {
             Runtime.getRuntime().exec("cmd /c start cmd.exe /K \" cd C:\\Users\\daniele\\Desktop\\Tesi\\Eseguibili && java -jar SentimentSetup.jar");
         } catch (IOException ex) {
             Logger.getLogger(Launcher.class.getName()).log(Level.SEVERE, null, ex);
@@ -51,7 +45,6 @@ public class DataDownloader {
 			startDate = Utilities.getCurrentDate();
 			queue = new LinkedBlockingQueue<Status>(100000);
 			lastUpdate = System.currentTimeMillis();
-			
 			GraphDBManager gdbm = new GraphDBManager();
 			session = gdbm.getSession();
 			TwitterManager tm = new TwitterManager(queue);
@@ -66,7 +59,6 @@ public class DataDownloader {
 				checkTime = false;
 
 			twitterStream.addListener(listener);
-			
 			twitterStream.filter(query);
 			contatore=0;
 			session.run("CREATE CONSTRAINT ON (source:Source) ASSERT source.application IS UNIQUE");
@@ -81,7 +73,6 @@ public class DataDownloader {
 					
 					if(System.currentTimeMillis()-lastUpdate>=10000)
 						printPace();
-					
 				}
 			}
 			else{
@@ -94,13 +85,9 @@ public class DataDownloader {
 					
 					if(System.currentTimeMillis()-lastUpdate>=10000)
 						printPace();
-					
-				
-				}
 			}
-
-				
 		}
+	}
 	
 	private static void printPace(){
 		long diff = System.currentTimeMillis()-lastUpdate;
