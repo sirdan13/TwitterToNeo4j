@@ -71,12 +71,14 @@ public class QuickDataDownloader {
 				list.add(status);
 			}
 			
-			if(list.size()==10){
+			if(list.size()==50){
 				FileOutputStream fos = null;
 				ObjectOutputStream out = null;
 				try {
 					String uuid = UUID.randomUUID().toString();
-					String filename = "C:/users/daniele/desktop/tesi/eseguibili/statuses/"+topic+"-"+uuid+".ser";
+					int folder = (int) (Math.random()*10);
+					
+					String filename = "C:/users/daniele/desktop/tesi/eseguibili/statuses/"+folder+"/"+topic+"-"+uuid+".ser";
 					fos = new FileOutputStream(filename);
 					out = new ObjectOutputStream(fos);
 					out.writeObject(list);
