@@ -69,8 +69,6 @@ public class FileReader {
 				System.out.println(tweetsLoaded+" tweets loaded.");
 			in.close();
 			fis.close();
-			for(Status s : statusList)
-				System.out.println(s.getUser().getName()+" says:\t "+s.getText());
 		}
 		catch(IOException | ClassNotFoundException ex){
 			statusList.clear();;

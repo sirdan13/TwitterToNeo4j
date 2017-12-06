@@ -29,6 +29,9 @@ public class DataDownloader {
 	static LinkedBlockingQueue<Status> queue;
 	static Date startDate;
 	static boolean checkTime;
+
+	static long lastUpdate;
+	static int lastBunch = 0;
 	
 	public static void main(String[] args) throws ClassNotFoundException, InstantiationException, IllegalAccessException, UnsupportedLookAndFeelException, FileNotFoundException, InterruptedException, ParseException{
 		
@@ -47,6 +50,7 @@ public class DataDownloader {
 		
 			startDate = Utilities.getCurrentDate();
 			queue = new LinkedBlockingQueue<Status>(100000);
+			lastUpdate = System.currentTimeMillis();
 			
 			GraphDBManager gdbm = new GraphDBManager();
 			session = gdbm.getSession();
@@ -65,8 +69,6 @@ public class DataDownloader {
 			
 			twitterStream.filter(query);
 			contatore=0;
-			long lastUpdate = System.currentTimeMillis();
-			int lastBunch = 0;
 			session.run("CREATE CONSTRAINT ON (source:Source) ASSERT source.application IS UNIQUE");
 			
 			if(checkTime){
@@ -77,17 +79,8 @@ public class DataDownloader {
 					} 
 					managePresentStatus(status);
 					
-					if(System.currentTimeMillis()-lastUpdate>=10000){
-						long diff = System.currentTimeMillis()-lastUpdate;
-						double diffTweets = contatore-lastBunch;
-						double pace = diffTweets/(diff/1000);
-						System.out.println();
-						System.out.println("Ritmo: "+pace+" T/s");
-						System.out.println();
-						lastUpdate=System.currentTimeMillis();
-						lastBunch=contatore;
-						
-					}
+					if(System.currentTimeMillis()-lastUpdate>=10000)
+						printPace();
 					
 				}
 			}
@@ -99,29 +92,31 @@ public class DataDownloader {
 					} 
 					manageAllStatus(status);
 					
-					if(System.currentTimeMillis()-lastUpdate>=10000){
-						long diff = System.currentTimeMillis()-lastUpdate;
-						double diffTweets = contatore-lastBunch;
-						double pace = diffTweets/(diff/1000);
-						System.out.println();
-						System.out.println("Ritmo: "+pace+" T/s");
-						System.out.println();
-						lastUpdate=System.currentTimeMillis();
-						lastBunch=contatore;
-						
-					}
+					if(System.currentTimeMillis()-lastUpdate>=10000)
+						printPace();
 					
+				
 				}
 			}
 
 				
 		}
+	
+	private static void printPace(){
+		long diff = System.currentTimeMillis()-lastUpdate;
+		double diffTweets = contatore-lastBunch;
+		double pace = diffTweets/(diff/1000);
+		System.out.println();
+		System.out.println("Ritmo: "+pace+" T/s");
+		System.out.println();
+		lastUpdate=System.currentTimeMillis();
+		lastBunch=contatore;
+	}
 			
 	private static void managePresentStatus(Status status) throws InterruptedException{
-		status = queue.poll();
 		
 		if (status == null) {
-			Thread.sleep(100);
+			return;
 		} 
 		
 		if(status!=null && TwitterManager.checkTime(startDate, status, checkTime)){
@@ -140,10 +135,9 @@ public class DataDownloader {
 	}
 	
 	private static void manageAllStatus(Status status) throws InterruptedException{
-		status = queue.poll();
 		
 		if (status == null) {
-			Thread.sleep(100);
+			return;
 		} 
 		
 		if(status!=null){
