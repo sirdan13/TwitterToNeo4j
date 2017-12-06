@@ -9,8 +9,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-import javax.swing.JOptionPane;
-
 import org.neo4j.driver.v1.Session;
 
 import stream_data.GraphDBManager;
@@ -27,8 +25,8 @@ public class FileReader {
 	static long lastUpdate;
 
 	public static void main(String[] args) {
-		int folderChoice = Integer.parseInt(args[0]);
-		File folder = new File("C:/users/daniele/desktop/tesi/eseguibili/statuses/"+folderChoice+"/");
+	//	int folderChoice = Integer.parseInt(args[0]);
+		File folder = new File("C:/users/daniele/desktop/tesi/eseguibili/statuses/");
 		gdbm = new GraphDBManager();
 		session = gdbm.getSession();
 		statusList = new ArrayList<Status>();
@@ -53,7 +51,8 @@ public class FileReader {
 								e.printStackTrace();
 							}
 						}
-						loadTweets(files[i]);
+						topic = files[i].getName().split("-")[0];
+						loadTweets(files[i].getAbsolutePath());
 						//TODO manageStatuses
 						files[i].delete();
 						statusList.clear();;
@@ -69,13 +68,13 @@ public class FileReader {
 	
 	
 	@SuppressWarnings("unchecked")
-	private static void loadTweets(File file) {
+	private static void loadTweets(String filename) {
 		
-		topic = file.getName().split("-")[0];
+		
 		FileInputStream fis = null;
 		ObjectInputStream in = null;
 		try{
-			fis = new FileInputStream(file.getAbsolutePath());
+			fis = new FileInputStream(filename);
 			in = new ObjectInputStream(fis);
 			statusList = (List<Status>) in.readObject();
 			if(statusList.size()>0)

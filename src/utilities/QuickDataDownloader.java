@@ -3,14 +3,11 @@
  */
 package utilities;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -76,9 +73,9 @@ public class QuickDataDownloader {
 				ObjectOutputStream out = null;
 				try {
 					String uuid = UUID.randomUUID().toString();
-					int folder = (int) (Math.random()*10);
+				//	int folder = (int) (Math.random()*10);
 					
-					String filename = "C:/users/daniele/desktop/tesi/eseguibili/statuses/"+folder+"/"+topic+"-"+uuid+".ser";
+					String filename = "C:/users/daniele/desktop/tesi/eseguibili/statuses/"+topic+"-"+uuid+".ser";
 					fos = new FileOutputStream(filename);
 					out = new ObjectOutputStream(fos);
 					out.writeObject(list);
