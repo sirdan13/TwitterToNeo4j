@@ -86,6 +86,7 @@ public class DataDownloader {
 			}
 			else{
 				while(true){
+					
 					/*
 					Status status = queue.poll();
 					if (status == null) {
