@@ -68,15 +68,16 @@ public class DataDownloader {
 			twitterStream.filter(query);
 			contatore=0;
 			long lastUpdate = System.currentTimeMillis();
-			int lastBunch = 0;
 			session.run("CREATE CONSTRAINT ON (source:Source) ASSERT source.application IS UNIQUE");
 			
 			if(checkTime){
 				while(true){
+					/*
 					Status status = queue.poll();
 					if (status == null) {
 						Thread.sleep(100);
-					} 
+					} */
+					Status status = queue.take();
 					managePresentStatus(status);
 					
 					if(System.currentTimeMillis()-lastUpdate>=10000)
@@ -85,10 +86,12 @@ public class DataDownloader {
 			}
 			else{
 				while(true){
+					/*
 					Status status = queue.poll();
 					if (status == null) {
 						Thread.sleep(100);
-					} 
+					} */
+					Status status = queue.take();
 					manageAllStatus(status);
 					
 					if(System.currentTimeMillis()-lastUpdate>=10000)
