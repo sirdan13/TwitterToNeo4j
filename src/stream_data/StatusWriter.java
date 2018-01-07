@@ -78,6 +78,8 @@ public class StatusWriter {
 				statusList.add(status);
 				if(statusList.size()>=batchSize){
 					writeFile(statusList);
+					System.out.println("Current status created_at:\t"+status.getCreatedAt());
+					System.out.println();
 					statusList.clear();
 				}
 					
@@ -112,14 +114,14 @@ public class StatusWriter {
 		return output;
 	}
 	
+	
 	private static void writeFile(List<Status> statusList) throws IOException, ParseException{
 		FileOutputStream fos = null;
 		ObjectOutputStream out = null;
-		String date = getCurrentDate().substring(0, 10);
-		File folder = new File("statuses/"+topic+"/"+date+"/"+getCurrentDate().substring(11, 16).replaceAll(":", ".")+".00");
+		File folder = new File("statuses/"+topic);
 		if(!folder.exists())
-			folder.mkdirs();																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																																	
-		String filename = folder+"/"+UUID.randomUUID().toString()+".ser";
+			folder.mkdirs();
+		File filename = new File(folder+"/"+System.currentTimeMillis()+".ser");
 		fos = new FileOutputStream(filename);
 		out = new ObjectOutputStream(fos);
 		out.writeObject(statusList);
@@ -127,6 +129,25 @@ public class StatusWriter {
 		fos.close();
 		System.out.println(statusList.size()*(counter++)+" tweets stored.");
 	}
+	
+	
+	//old method
+	/*
+	private static void writeFile(List<Status> statusList) throws IOException, ParseException{
+		FileOutputStream fos = null;
+		ObjectOutputStream out = null;
+		String date = getCurrentDate().substring(0, 10);
+		File folder = new File("statuses/"+topic+"/"+date+"/"+getCurrentDate().substring(11, 16).replaceAll(":", ".")+".00");
+		if(!folder.exists())
+			folder.mkdirs();
+		String filename = folder+"/"+UUID.randomUUID().toString()+".ser";
+		fos = new FileOutputStream(filename);
+		out = new ObjectOutputStream(fos);
+		out.writeObject(statusList);
+		out.close();
+		fos.close();
+		System.out.println(statusList.size()*(counter++)+" tweets stored.");
+	}*/
 			
 	public static String getCurrentDate() throws ParseException{
 		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
