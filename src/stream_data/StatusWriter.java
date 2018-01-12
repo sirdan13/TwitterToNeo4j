@@ -1,11 +1,12 @@
 package stream_data;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -13,12 +14,14 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.Scanner;
-import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
-import javax.swing.JOptionPane;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
 import twitter4j.DirectMessage;
 import twitter4j.FilterQuery;
@@ -44,8 +47,28 @@ public class StatusWriter {
 	static List<String> urls;
 	static String topic;
 	static int counter = 1;
+	/*static JavaSparkContext jsc;
+	static JavaRDD<Status> statusRDD;
+	static JavaPairRDD<Integer, String> hashtagsRDD;*/
+	static int contatore = 0;
+	static Properties props;
 	public static void main(String[] args) throws InterruptedException, TwitterException, IOException, ParseException{
-
+		
+		/*Logger.getLogger("org").setLevel(Level.ERROR);
+		Logger.getLogger("akka").setLevel(Level.ERROR);
+		SparkConf conf = new SparkConf();
+		conf.setAppName("Esempio d'uso di Spark");
+		conf.setMaster("local[*]");
+		jsc = new JavaSparkContext(conf);*/
+		loadKafkaProperties();
+		//readSpark();
+		//writeData();
+		writeDataKafka();
+		
+		
+	}
+	/*
+	private static void writeData() throws InterruptedException, IOException, ParseException {
 		LinkedBlockingQueue<Status> queue = new LinkedBlockingQueue<Status>(100000);
 		File statusesFolder = new File("statuses/");
 		if(!statusesFolder.exists())
@@ -87,7 +110,165 @@ public class StatusWriter {
 		}
 		
 	}
+	*/
+	private static void writeDataKafka() throws InterruptedException, IOException, ParseException {
+		
+		LinkedBlockingQueue<Status> queue = new LinkedBlockingQueue<Status>(100000);
+	/*	File statusesFolder = new File("statuses/");
+		if(!statusesFolder.exists())
+			statusesFolder.mkdir();*/
+	//	topic = JOptionPane.showInputDialog("Input the topic:");
+	//	int batchSize = Integer.parseInt(JOptionPane.showInputDialog("Input the batch size: "));
+		setCredentials(readTwitterAuth("config/oauth.txt"));
+		Configuration config = cb.build();
+		TwitterFactory tf = new TwitterFactory(config);
+		twitter = tf.getInstance();
+		TwitterStream twitterStream = new TwitterStreamFactory(config).getInstance();
+		FilterQuery query = new FilterQuery();
+		urls = new ArrayList<>();
+		String [] keywords = importKeywords("config/keywords.txt");
+		String [] languages = importKeywords("config/lang.txt");
+		//long[] users = importUsers("config/users.txt");
+		query.track(keywords);
+		//query.follow(users);
+		if(!languages[0].equals("none"))
+			query.language(languages);
+		listener = getListener(queue);
+		twitterStream.addListener(listener);
+		twitterStream.filter(query);
+		List<Status> statusList = new ArrayList<>();
+		
+		//Producer<String, Status> producer = new KafkaProducer<>(props);
+		Producer<String, byte[]> producer = new KafkaProducer<>(props);
+		
+		int j = 0;
+		while(true){
+			Status status = queue.poll();
+			if(status==null)
+				Thread.sleep(100);
+			else{
+				//producer.send(new ProducerRecord<String, Status>("twitter-test", Integer.toString(j++), status));
+				ByteArrayOutputStream bos = new ByteArrayOutputStream();
+			    ObjectOutput out = new ObjectOutputStream(bos);
+			    out.writeObject(status);
+			    byte b[] = bos.toByteArray();
+			    out.close();
+			    bos.close();
+			    double random = Math.random();
+			    int topicID;
+			    if(random>0.5)
+			    	topicID=1;
+			    else
+			    	topicID=2;
+			    producer.send(new ProducerRecord<String, byte[]>("twitter-test"+topicID, Integer.toString(j++), b));
+				if(j%100==0)
+					System.out.println("Sent "+j+" messages");
+				//statusList.add(status);
+				/*if(statusList.size()>=batchSize){
+					//writeFile(statusList);
+					System.out.println("Current status created_at:\t"+status.getCreatedAt());
+					System.out.println();
+					statusList.clear();*/
+				}
+					
+			}
+		//producer.close();
+		}
+		
 	
+	
+	
+	private static void loadKafkaProperties() throws FileNotFoundException{
+		List<String> kafkaBrokerList = readKafkaBrokers("config/kafka_broker_list.txt");
+		List<String> zookeeperServerList = readZKServerList("config/zookeeper_server_list.txt");
+		
+		props = new Properties();
+		
+		for(String s : kafkaBrokerList)
+			props.put("metadata.broker.list", s);
+		
+		for(String s : zookeeperServerList)
+			props.put("bootstrap.servers", s);
+		
+		props.put("acks", "all");
+		props.put("retries", 0);
+		props.put("batch.size", 16384);
+		props.put("linger.ms", 20);
+		props.put("buffer.memory", 33554432);
+		props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+		//props.put("value.serializer", "stream_data.StatusSerializer");
+		props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+	
+	}
+
+	/*private static void readSpark() {
+
+		File folder = new File("analytics/test spark");
+		for(File f : folder.listFiles()){
+			statusRDD = jsc.objectFile(f.getAbsolutePath());
+			/*for(Status s : rdd.collect())
+				System.out.println(s.getText());
+			JavaPairRDD<Integer, String> htFreq = countHashtags(statusRDD);
+			JavaPairRDD<String, Integer> temp;
+			if(contatore>0){
+				hashtagsRDD.union(htFreq);
+				temp = hashtagsRDD.mapToPair(x->x.swap()).reduceByKey(sumFunc);
+			}
+			else{
+				temp = htFreq.mapToPair(x->x.swap());
+			}
+			contatore++;
+			//TODO ripete sempre gli stessi elementi, non aggiorna nell'output----> risolvere
+			hashtagsRDD = temp.mapToPair(x->x.swap()).sortByKey(false);
+			System.out.println();
+			System.out.println("----------------#"+(contatore)+" UPDATE--------------------");
+			System.out.println();
+			for(Tuple2<Integer, String> s : hashtagsRDD.collect())
+					System.out.println(s._2+"\t"+s._1);
+		}
+	}
+	
+	public static JavaPairRDD<Integer, String> countHashtags(JavaRDD<Status> statuses) {
+
+		JavaPairRDD<String, Integer> htCount = statuses.flatMapToPair(getHashtags).reduceByKey(sumFunc).filter(frequenceThreshold);
+		return  htCount.mapToPair(x->x.swap()).sortByKey(false);
+		
+	}
+	
+	static Function<Tuple2<String, Integer>, Boolean> frequenceThreshold = new Function<Tuple2<String, Integer>, Boolean>(){
+
+		@Override
+		public Boolean call(Tuple2<String, Integer> arg0) throws Exception {
+			if(arg0._2>1)
+				return true;
+			return false;
+		}
+		
+	};
+	
+	private static PairFlatMapFunction<Status, String, Integer> getHashtags = new PairFlatMapFunction<Status, String, Integer>(){
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Iterator<Tuple2<String, Integer>> call(Status arg0) throws Exception {
+			List<Tuple2<String, Integer>> hashtags = new ArrayList<>();
+			for(HashtagEntity h : arg0.getHashtagEntities())
+				hashtags.add(new Tuple2<String, Integer>(h.getText(), 1));
+			return hashtags.iterator();
+		}
+		
+	};
+	
+	static Function2<Integer, Integer, Integer> sumFunc = new Function2<Integer, Integer, Integer>() {
+		
+		private static final long serialVersionUID = 1L;
+	
+		@Override public Integer call(Integer i1, Integer i2) throws Exception {
+			return i1 + i2;
+		}
+	};*/
+
 	private static String [] readTwitterAuth(String file){
 		String [] output = new String[4];
 		boolean success = false;
@@ -113,8 +294,37 @@ public class StatusWriter {
 		}
 		return output;
 	}
+	/*
+	private static void writeFile(List<Status> statusList) throws IOException, ParseException{
+		
+		JavaRDD<Status> rdd = jsc.parallelize(statusList);
+		rdd.saveAsObjectFile("analytics/"+topic+"/"+System.currentTimeMillis());
+		
+		
+	}*/
 	
 	
+
+	private static List<String> readKafkaBrokers(String file) throws FileNotFoundException {
+		Scanner sc = new Scanner(new File(file));
+		List<String> output = new ArrayList<String>();
+		while(sc.hasNextLine())
+			output.add(sc.nextLine());
+		sc.close();
+		return output;
+	}
+	
+	
+	private static List<String> readZKServerList(String file) throws FileNotFoundException {
+		Scanner sc = new Scanner(new File(file));
+		List<String> output = new ArrayList<String>();
+		while(sc.hasNextLine())
+			output.add(sc.nextLine());
+		sc.close();
+		return output;
+	}
+	
+	/*
 	private static void writeFile(List<Status> statusList) throws IOException, ParseException{
 		FileOutputStream fos = null;
 		ObjectOutputStream out = null;
@@ -129,7 +339,7 @@ public class StatusWriter {
 		fos.close();
 		System.out.println(statusList.size()*(counter++)+" tweets stored.");
 	}
-	
+	*/
 	
 	//old method
 	/*

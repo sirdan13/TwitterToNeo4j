@@ -1,0 +1,4 @@
+appName=Spark Streaming
+setMaster=local[*]
+thread(s)=3
+duration=10000

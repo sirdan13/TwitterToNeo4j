@@ -655,10 +655,28 @@ public static void insertTweet(Session session, String topic, Status status) {
 		String query = "";
 		
 		query+="\nMERGE (t:Tweet{tweet_id:{tweet_id}})"
-				+ " SET t.text={text}, t.language={language}, t.created_at={created_at}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}";
-		query+="\nMERGE (rt:Tweet{tweet_id:{re_tweet_id}})"
-				+ "\nSET rt.text={re_text}, rt.language={re_language}, rt.created_at={re_created_at}, rt.retweetcount={re_retweetcount}, rt.likecount={re_likecount}, rt.location={re_location}";
+				+ "ON CREATE SET "
+				+ "		t.text={text}, "
+				+ "		t.language={language}, "
+				+ "		t.created_at={created_at}, "
+				+ "     t.retweetcount={retweetcount},"
+				+ "     t.likecount={likecount},"
+				+ "     t.location={location} "
+				+ "	ON MATCH SET "
+				+ "	    t.retweetcount={retweetcount}, "
+				+ "	    t.likecount={likecount} ";
 		
+		query+="\nMERGE (rt:Tweet{tweet_id:{re_tweet_id}})"
+				+ "ON CREATE SET "
+				+ "		rt.text={re_text}, "
+				+ "		rt.language={re_language}, "
+				+ "		rt.created_at={re_created_at}, "
+				+ "     rt.retweetcount={re_retweetcount},"
+				+ "     rt.likecount={re_likecount},"
+				+ "     rt.location={re_location} "
+				+ "	ON MATCH SET "
+				+ "	    rt.retweetcount={re_retweetcount}, "
+				+ "	    rt.likecount={re_likecount} ";
 		
 		if(retweet.getPlace()!=null)
 			re_location = retweet.getPlace().getName();
@@ -801,13 +819,27 @@ public static void insertTweet(Session session, String topic, Status status) {
 					+ "\n MERGE (rt)-[:REPLIES_TO]->(rtreplied)";
 		}	
 		
-				
-		
+		query+="\nMERGE (ou:User{user_id:{ouser_id}}) "
+				+ "\nSET ou.followers={ofollowers}, "
+				+ "ou.following={ofollowing}, "
+				+ "ou.screen_name={oscreen_name}, "
+				+ "ou.location={ouser_location}, "
+				+ "ou.name={oname}, "
+				+ "ou.verified={overified}, "
+				+ "ou.profileImage={oprofileImage}, "
+				+ "ou.description={odescription} ";
+	
+		query+="\nMERGE (u:User{user_id:{user_id}}) "
+				+ "\nSET u.followers={followers}, "
+				+ "u.following={following}, "
+				+ "u.screen_name={screen_name}, "
+				+ "u.location={user_location}, "
+				+ "u.name={name}, "
+				+ "u.verified={verified}, "
+				+ "u.profileImage={profileImage}, "
+				+ "u.description={description} ";
+	
 		//Query
-		query+="\nMERGE (ou:User{user_id:{ouser_id}})"
-		+ " SET ou.followers={ofollowers}, ou.following={ofollowing}, ou.screen_name={oscreen_name}, ou.location={ouser_location}, ou.name={oname}, ou.verified={overified}, ou.profileImage={oprofileImage}, ou.description={odescription}";
-		query+="\nMERGE (u:User{user_id:{user_id}})"
-		+ " SET u.followers={followers}, u.following={following}, u.screen_name={screen_name}, u.location={user_location}, u.name={name}, u.verified={verified}, u.profileImage={profileImage}, u.description={description}";
 		query+="\nMERGE (ou)-[:POSTS]->(rt)";
 		query+="\nMERGE (u)-[:POSTS]->(t)";
 		query+="\nMERGE (t)-[:RETWEETS]->(rt)";

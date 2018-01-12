@@ -17,15 +17,17 @@ import org.neo4j.driver.v1.Session;
 
 import twitter4j.Status;
 
-public class StatusLoader {
+public class StatusToDB {
 	
 	static List<Status> statusList;
 	static Session session;
 	static String topic;
+	static int contatore = 0;
+	static double time_avg = 0;
 
 	public static void main(String[] args) {
 		statusList = new ArrayList<>();
-		File statusesFolder = new File(JOptionPane.showInputDialog("Insert location of statuses folder: "));
+		File statusesFolder = new File(JOptionPane.showInputDialog("Insert location of statuses folder: ")+"/statuses/");
 		GraphDBManager gdbm = new GraphDBManager();
 		session = gdbm.getSession();
 		session.run("CREATE CONSTRAINT ON (source:Source) ASSERT source.application IS UNIQUE");
@@ -33,27 +35,15 @@ public class StatusLoader {
 		session.run("CREATE CONSTRAINT ON (n:User) ASSERT n.user_id IS UNIQUE");
 		topic = (String) JOptionPane.showInputDialog(null, "Choose a topic:", "Twitter", 0, null, statusesFolder.list(), statusesFolder.list()[0]);
 		File topicFolder = new File(statusesFolder+"/"+topic);
-		String [] folders = topicFolder.list();
-		Arrays.sort(folders);
-		String date = (String) JOptionPane.showInputDialog(null, "Choose a starting date:", "Twitter", 0, null, folders, folders);
+		File [] files = topicFolder.listFiles();
 		int separator = 0;
-		for(int i = 0;i<folders.length;i++)
-			if(date.equals(folders[i]))
-				separator = i;
-		List<File> files = new ArrayList<>();
-		for(int i = 0; i<topicFolder.listFiles().length; i++)
-			if(i>=separator)
-				files.add(topicFolder.listFiles()[i]);
-		for(File f : files){
-			File [] hourFiles = f.listFiles();
-			for(File f1 : hourFiles){
-				for(File f2 : f1.listFiles()){
-					loadTweets(f2.getAbsolutePath());
-				}
-			}
+		for(int i = 0;i<files.length;i++)
+			loadTweets(files[i].getAbsolutePath());
+				
+			
 		}
 
-	}
+	
 	
 	@SuppressWarnings("unused")
 	private static void loadTweets(String filename) {
@@ -72,9 +62,10 @@ public class StatusLoader {
 		catch(IOException | ClassNotFoundException ex){
 			ex.printStackTrace();
 		}
-		int contatore = 1;
+		
 		for(Status s : statusList){
 			if(s!=null){
+				long start = System.currentTimeMillis();
 				if(s.isRetweet()){
 					TwitterManager.insertRetweet(session, topic, s);
 					contatore++;
@@ -83,9 +74,14 @@ public class StatusLoader {
 				else
 					TwitterManager.insertTweet(session, topic, s);
 				contatore++;
-				
-				if(contatore%500==0 && contatore>0)
-					System.out.println(contatore+" tweet caricati.");
+				long end = System.currentTimeMillis();
+				long diff = (end-start);
+				if(time_avg==0)
+					time_avg=diff/contatore;
+				else
+					time_avg = (time_avg*(contatore-1)+(diff))/contatore;
+				if(contatore%10==0 && contatore>0)
+					System.out.println(contatore+" tweet caricati;"+time_avg);
 			}
 		}
 		statusList.clear();

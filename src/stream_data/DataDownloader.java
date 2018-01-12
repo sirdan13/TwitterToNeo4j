@@ -69,6 +69,10 @@ public class DataDownloader {
 			contatore=0;
 			long lastUpdate = System.currentTimeMillis();
 			session.run("CREATE CONSTRAINT ON (source:Source) ASSERT source.application IS UNIQUE");
+			session.run("CREATE CONSTRAINT ON (n:Tweet) ASSERT n.tweet_id IS UNIQUE");
+			session.run("CREATE CONSTRAINT ON (n:User) ASSERT n.user_id IS UNIQUE");
+			
+			double time_avg = 0;
 			
 			if(checkTime){
 				while(true){
@@ -77,11 +81,23 @@ public class DataDownloader {
 					if (status == null) {
 						Thread.sleep(100);
 					} */
+					
+					long start = System.currentTimeMillis();
+					
 					Status status = queue.take();
 					managePresentStatus(status);
 					
+					long end = System.currentTimeMillis();
+					long diff = (end-start);
+					if(time_avg==0)
+						time_avg=diff/contatore;
+					else
+						time_avg = (time_avg*(contatore-1)+(diff))/contatore;
+					if(contatore%10==0 && contatore>0)
+						System.out.println(contatore+" tweet caricati;"+time_avg);
+					/*
 					if(System.currentTimeMillis()-lastUpdate>=10000)
-						printPace();
+						printPace();*/
 				}
 			}
 			else{
@@ -92,11 +108,23 @@ public class DataDownloader {
 					if (status == null) {
 						Thread.sleep(100);
 					} */
+					long start = System.currentTimeMillis();
+					
 					Status status = queue.take();
 					manageAllStatus(status);
 					
+					long end = System.currentTimeMillis();
+					long diff = (end-start);
+					if(time_avg==0)
+						time_avg=diff/contatore;
+					else
+						time_avg = (time_avg*(contatore-1)+(diff))/contatore;
+					if(contatore%10==0 && contatore>0)
+						System.out.println(contatore+" tweet caricati;"+time_avg);
+					
+					/*
 					if(System.currentTimeMillis()-lastUpdate>=10000)
-						printPace();
+						printPace();*/
 			}
 		}
 	}
