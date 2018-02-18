@@ -26,12 +26,13 @@ public class StatusLoader {
 	public static void main(String[] args) {
 		statusList = new ArrayList<>();
 		File statusesFolder = new File(JOptionPane.showInputDialog("Insert location of statuses folder: "));
+		topic = JOptionPane.showInputDialog("Insert topic name:");
 		GraphDBManager gdbm = new GraphDBManager();
 		session = gdbm.getSession();
-		session.run("CREATE CONSTRAINT ON (source:Source) ASSERT source.application IS UNIQUE");
+	/*	session.run("CREATE CONSTRAINT ON (source:Source) ASSERT source.application IS UNIQUE");
 		session.run("CREATE CONSTRAINT ON (n:Tweet) ASSERT n.tweet_id IS UNIQUE");
-		session.run("CREATE CONSTRAINT ON (n:User) ASSERT n.user_id IS UNIQUE");
-		topic = (String) JOptionPane.showInputDialog(null, "Choose a topic:", "Twitter", 0, null, statusesFolder.list(), statusesFolder.list()[0]);
+		session.run("CREATE CONSTRAINT ON (n:User) ASSERT n.user_id IS UNIQUE");*/
+	/*	topic = (String) JOptionPane.showInputDialog(null, "Choose a topic:", "Twitter", 0, null, statusesFolder.list(), statusesFolder.list()[0]);
 		File topicFolder = new File(statusesFolder+"/"+topic);
 		String [] folders = topicFolder.list();
 		Arrays.sort(folders);
@@ -52,10 +53,29 @@ public class StatusLoader {
 				}
 			}
 		}
-
+*/
+		
+		String [] fileNames = statusesFolder.list();
+		//System.out.println(statusesFolder);
+		//System.exit(0);
+		Arrays.sort(fileNames);
+		List<File> files = new ArrayList<>();
+		System.out.println("Loading files...");
+		for(int i = 0;i<fileNames.length;i++)
+			files.add(new File(fileNames[i]));
+		System.out.println("Files loaded.");
+		System.out.println("Loading into db...");
+		double counter = 0;
+		for(File f : files){
+		//	System.out.println(statusesFolder+"\\"+f.getName());
+			loadTweets(statusesFolder+"\\"+f.getName());
+			counter++;
+			System.out.println((int)counter+"/"+files.size()+" files processed ("+counter/(double) (files.size())*100+" %)");
+		}
+			
+		
 	}
 	
-	@SuppressWarnings("unused")
 	private static void loadTweets(String filename) {
 		
 		FileInputStream fis = null;

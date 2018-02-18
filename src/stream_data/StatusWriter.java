@@ -136,7 +136,7 @@ public class StatusWriter {
 		listener = getListener(queue);
 		twitterStream.addListener(listener);
 		twitterStream.filter(query);
-		List<Status> statusList = new ArrayList<>();
+		//List<Status> statusList = new ArrayList<>();
 		
 		//Producer<String, Status> producer = new KafkaProducer<>(props);
 		Producer<String, byte[]> producer = new KafkaProducer<>(props);
@@ -154,14 +154,17 @@ public class StatusWriter {
 			    byte b[] = bos.toByteArray();
 			    out.close();
 			    bos.close();
-			    double random = Math.random();
-			    int topicID;
+			 //   double random = Math.random();
+			 /*   int topicID;
 			    if(random>0.5)
 			    	topicID=1;
 			    else
 			    	topicID=2;
 			    producer.send(new ProducerRecord<String, byte[]>("twitter-test"+topicID, Integer.toString(j++), b));
-				if(j%100==0)
+			*/	
+			    producer.send(new ProducerRecord<String, byte[]>("twitter-test1", Integer.toString(j++), b));
+				
+			    if(j%100==0)
 					System.out.println("Sent "+j+" messages");
 				//statusList.add(status);
 				/*if(statusList.size()>=batchSize){

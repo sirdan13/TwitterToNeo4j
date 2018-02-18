@@ -32,10 +32,10 @@ public class Reader {
 	//private static Map<String, Integer> topics;
 	private static Set<String> topics;
 	private static String topic = "twitter-test1";
-	private static String threads;
+	/*private static String threads;
 	private static String appName;
 	private static String master;
-	private static long duration;
+	private static long duration;*/
 	static String zookeeper_server = "";
 	static String kafka_consumer_group = "";
 	//static JavaPairInputDStream<String, Status> messages;

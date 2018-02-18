@@ -103,7 +103,7 @@ public class RecapTweets extends javax.swing.JFrame {
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Twitter Analytics");
 
-        jButton1.setBackground(new java.awt.Color(0, 204, 204));
+      //  jButton1.setBackground(new java.awt.Color(0, 204, 204));
         jButton1.setFont(new java.awt.Font("Calibri", 3, 18)); // NOI18N
         jButton1.setText("Aggiorna");
         jButton1.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));

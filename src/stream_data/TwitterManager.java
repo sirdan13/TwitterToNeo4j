@@ -557,7 +557,7 @@ public static void insertTweet(Session session, String topic, Status status) {
 		
 		//Query
 				query += 	
-						"\nCREATE (t:Tweet{tweet_id:{tweet_id}})"
+						"\nMERGE (t:Tweet{tweet_id:{tweet_id}})"
 						+ " SET t.text={text}, t.created_at={created_at}, t.retweetcount={retweetcount}, t.likecount={likecount}, t.location={location}, t.language={language}";
 				query+="\nMERGE (u:User{user_id:{user_id}})"
 						+ " SET u.followers={followers}, u.following={following}, u.screen_name={screen_name}, u.location={user_location}, u.name={name}, u.verified={verified}, u.profileImage={profileImage}, u.description={description}";
@@ -746,18 +746,24 @@ public static void insertTweet(Session session, String topic, Status status) {
 		int nHashtag = 0;
 		nHashtag = 0;
 		for(HashtagEntity h : retweet.getHashtagEntities()){
-			nHashtag++;
-			parameters.put("tag"+nHashtag, h.getText().toLowerCase());
-			query += "\nMERGE (h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
-			query += "\nMERGE (rt)-[:TAGS]->(h"+(nHashtag)+")";
+			if(!h.getText().equals(null)){
+				nHashtag++;
+				parameters.put("tag"+nHashtag, h.getText().toLowerCase());
+				query += "\nMERGE (h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+				query += "\nMERGE (rt)-[:TAGS]->(h"+(nHashtag)+")";
+			}
+			
 		}
 		
 		//Tweet: Hashtag property
 		for(HashtagEntity h : status.getHashtagEntities()){
-			nHashtag++;
-			parameters.put("tag"+nHashtag, h.getText().toLowerCase());
-			query += "\nMERGE (h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
-			query += "\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+")";
+			if(!h.getText().equals(null)){
+				nHashtag++;
+				parameters.put("tag"+nHashtag, h.getText().toLowerCase());
+				query += "\nMERGE (h"+(nHashtag)+":Hashtag{tag:{tag"+nHashtag+"}})";
+				query += "\nMERGE (t)-[:TAGS]->(h"+(nHashtag)+")";
+			}
+			
 		}	
 		
 		
