@@ -15,7 +15,7 @@ import stream_data.GraphDBManager;
 public class SentimentSetup {
 	
 	private static Session session;
-
+	static int counter = 0;
 	
 	
 	public static void main(String[] args) {
@@ -31,12 +31,12 @@ public class SentimentSetup {
 	
 	private static void extractData(){
 		
-		String query = "MATCH (topic:Topic)<--(t:Tweet) WHERE not exists(t.sentiment) RETURN t,id(t)";
+		String query = "MATCH (topic:Topic)<--(t:Tweet) WHERE not exists(t.sentiment) RETURN t,id(t) limit 100";
 		StatementResult sr = session.run(query);
 		Record r;
 		Node tweet;
-		System.out.println("Loading results...");
-		int counter = 0;
+		//System.out.println("Loading results...");
+		
 		while(sr.hasNext()){
 			r = sr.next();
 			tweet = r.get("t").asNode();
@@ -56,9 +56,9 @@ public class SentimentSetup {
 			if(counter%100==0)
 				System.out.println(counter+" tweets processed.");
 			}
-		System.out.println("Task completed.");
+		//System.out.println("Task completed.");
 		System.out.println("Total tweets processed: "+counter);
-		System.out.println();
+		//System.out.println();
 	}
 	
 	@SuppressWarnings("unused")
