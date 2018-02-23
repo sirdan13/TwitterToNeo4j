@@ -255,7 +255,7 @@ public class TopTweets extends javax.swing.JFrame {
     }
     
     private void getDataButtonActionPerformed(java.awt.event.ActionEvent evt) {                                              
-        clearTable();
+       
         
         Session session = gdbm.getSession();
         
