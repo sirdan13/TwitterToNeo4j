@@ -322,7 +322,7 @@ public class TopTweets extends javax.swing.JFrame {
             contaCondizioni++;
         }
         
-        query+=" WITH t, u, (t.potentialReach+u.followers) as calcolo"
+        query+=" WITH t, u, (t.potentialReach) as calcolo"
                 + "\n RETURN u.name as author, t.text as tweet, t.sentiment as sentiment, t.location as location, calcolo"
                 + "\n ORDER BY calcolo DESC"
                 + "\n LIMIT 10";
